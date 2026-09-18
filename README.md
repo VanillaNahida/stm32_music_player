@@ -1,8 +1,8 @@
 # STM32 多和弦蜂鸣器音乐盒 (STM32 Music Player)
 
-<!-- <div align="center">
-  <img width="2056" height="1156" alt="STM32多和弦蜂鸣器音乐盒_封面" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=STM32%20microcontroller%20development%20board%20with%20piezo%20buzzer%20and%20small%20OLED%20screen%20on%20a%20workbench%2C%20electronic%20music%20project%2C%20macro%20photography%2C%20soft%20studio%20lighting%2C%20dark%20blue%20and%20teal%20tones&image_size=landscape_16_9" />
-</div> -->
+<div align="center">
+  <img width="640" alt="IMG" src="https://github.com/user-attachments/assets/20afcabf-6314-41d8-9fc7-6fd515a90b61" />  
+</div>
 
 <div align="center">
 
