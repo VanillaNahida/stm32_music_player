@@ -1,0 +1,744 @@
+:root {
+    --bg: #0b0d12;
+    --panel: #141821;
+    --text: #e8ebf2;
+    --muted: #8b93a8;
+    --accent: #5eead4;
+    --base-font: "Blueaka", sans-serif;
+    --line: rgba(255, 255, 255, .08);
+}
+
+html, body, * {
+  font-family: var(--base-font) !important;
+}
+
+b, strong, h1, h2, h3, h4, h5, h6 {
+  font-weight: 700 !important;
+}
+
+* {
+    box-sizing: border-box
+}
+
+html, body {
+    height: 100%
+}
+
+body {
+    margin: 0;
+    background: radial-gradient(circle at 50% -10%, #1b2132 0%, #0b0d12 62%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 30px 16px 60px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.app {
+    width: 100%;
+    max-width: 940px
+}
+
+h1 {
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    margin: 0 0 8px
+}
+
+.sub {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.75;
+    margin: 0 0 22px;
+}
+
+.sub code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 12px;
+    color: #a5f3e6;
+}
+
+/* ---------- MIDI 面板 ---------- */
+.midi-panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 10px 30px -18px #000;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+}
+
+.file-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+    white-space: nowrap;
+}
+
+.file-label:hover {
+    background: rgba(255, 255, 255, .1);
+    border-color: rgba(255, 255, 255, .18)
+}
+
+.file-label input {
+    display: none
+}
+
+.file-label svg {
+    width: 14px;
+    height: 14px;
+    flex: none
+}
+
+.play-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(180deg, #5eead4, #2dd4bf);
+    color: #0b0d12;
+    border: 0;
+    border-radius: 9px;
+    padding: 9px 18px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter .15s, transform .06s;
+    white-space: nowrap;
+}
+
+.play-btn:hover:not(:disabled) {
+    filter: brightness(1.08)
+}
+
+.play-btn:active:not(:disabled) {
+    transform: translateY(1px)
+}
+
+.play-btn:disabled {
+    background: rgba(255, 255, 255, .08);
+    color: var(--muted);
+    cursor: not-allowed;
+}
+
+.render-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 9px;
+    padding: 9px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+    white-space: nowrap;
+}
+
+.render-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, .1);
+    border-color: var(--accent)
+}
+
+.render-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed
+}
+
+.render-btn.working {
+    opacity: .6;
+    cursor: progress
+}
+
+.midi-info {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: auto;
+    font-family: ui-monospace, Menlo, monospace;
+    white-space: nowrap;
+}
+
+.midi-info.err {
+    color: #fca5a5
+}
+
+.progress-wrap {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.progress-track {
+    position: relative;
+    width: 100%;
+    height: 5px;
+    background: rgba(255, 255, 255, .1);
+    border-radius: 3px;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #5eead4, #a78bfa);
+    border-radius: 3px;
+    transition: width .08s linear;
+}
+
+.progress-thumb {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px -1px var(--accent);
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .12s;
+}
+
+.progress-bar:hover .progress-thumb,
+.progress-bar.dragging .progress-thumb {
+    opacity: 1
+}
+
+.progress-bar.dragging .progress-fill {
+    transition: none
+}
+
+.time {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 96px;
+    text-align: right;
+}
+
+/* ---------- 转录导出进度条 ---------- */
+.render-progress {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* display:flex 会覆盖 hidden 属性，这里显式保证默认隐藏、仅在转录任务时显示 */
+.render-progress[hidden] {
+    display: none
+}
+
+.render-bar {
+    flex: 1;
+    height: 5px;
+    background: rgba(255, 255, 255, .1);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.render-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #fbbf24, #f43f5e);
+    border-radius: 3px;
+    transition: width .08s linear;
+}
+
+/* ---------- 文件名 ---------- */
+.midi-name {
+    font-size: 12px;
+    color: var(--text);
+    font-family: ui-monospace, Menlo, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+
+/* ---------- 示例曲库弹窗 ---------- */
+.modal-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 20px;
+}
+
+.modal-mask[hidden] {
+    display: none
+}
+
+.modal {
+    width: 100%;
+    max-width: 430px;
+    max-height: 70vh;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px -18px #000;
+}
+
+.modal-title {
+    padding: 14px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--line);
+}
+
+.modal-list {
+    flex: 1;
+    overflow: auto;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 130px;
+    max-height: 46vh;
+}
+
+.lib-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    cursor: pointer;
+    font-size: 13px;
+    background: rgba(255, 255, 255, .03);
+    user-select: none;
+}
+
+.lib-item:hover {
+    background: rgba(255, 255, 255, .07)
+}
+
+.lib-item.selected {
+    background: rgba(94, 234, 212, .12);
+    border-color: var(--accent);
+}
+
+.lib-item img {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    opacity: .9
+}
+
+.lib-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modal-state {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 18px 12px;
+    text-align: center;
+}
+
+.modal-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--line);
+}
+
+.modal-btn {
+    background: rgba(255, 255, 255, .07);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+
+.modal-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, .12)
+}
+
+.modal-btn.primary {
+    background: linear-gradient(180deg, #5eead4, #2dd4bf);
+    color: #0b0d12;
+    font-weight: 600;
+    border: 0;
+}
+
+.modal-btn.primary:hover:not(:disabled) {
+    filter: brightness(1.08)
+}
+
+.modal-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed
+}
+
+/* ---------- 控制条 ---------- */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 22px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 10px 30px -18px #000;
+}
+
+.switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+}
+
+.switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0
+}
+
+.track {
+    width: 42px;
+    height: 24px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .13);
+    position: relative;
+    transition: background .2s;
+    flex: none;
+}
+
+.thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform .2s cubic-bezier(.4, 1.6, .6, 1);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+}
+
+.switch input:checked+.track {
+    background: var(--accent)
+}
+
+.switch input:checked+.track .thumb {
+    transform: translateX(18px)
+}
+
+.switch input:focus-visible+.track {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px
+}
+
+.field {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.field.off {
+    opacity: .35;
+    pointer-events: none
+}
+
+.val {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    color: var(--text);
+    min-width: 46px;
+}
+
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, .06) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%238b93a8'/></svg>") no-repeat right 10px center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 28px 7px 11px;
+    cursor: pointer;
+    outline: none;
+}
+
+select:focus {
+    border-color: var(--accent)
+}
+
+/* 下拉选项列表：原生列表会继承浅色文字，这里强制暗色底 + 浅色字 */
+select option {
+    color: var(--text);
+    background-color: #1a1f2b;
+}
+
+input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 110px;
+    height: 4px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, .15);
+    outline: none;
+    cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px -1px var(--accent);
+    cursor: pointer;
+}
+
+input[type=range]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px -1px var(--accent);
+    cursor: pointer;
+}
+
+.env-hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0 0 22px;
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, .025);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    line-height: 1.6;
+}
+
+.env-hint b {
+    color: #a5f3e6;
+    font-weight: 600
+}
+
+/* ---------- 键盘 ---------- */
+.keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 22px
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 74px repeat(7, 1fr);
+    gap: 10px;
+    align-items: stretch;
+}
+
+.row-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--muted);
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    letter-spacing: .08em;
+}
+
+.row-label .mini {
+    display: none
+}
+
+.key {
+    position: relative;
+    height: 78px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .015));
+    color: var(--text);
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background .12s, border-color .12s, box-shadow .15s, transform .06s;
+}
+
+.key:hover {
+    background: rgba(255, 255, 255, .09)
+}
+
+.key.active {
+    background: var(--c-soft);
+    border-color: var(--c);
+    box-shadow: 0 0 22px -6px var(--c), inset 0 0 26px -14px var(--c);
+    transform: translateY(1px) scale(.98);
+}
+
+.key:focus-visible {
+    outline: 2px solid var(--c);
+    outline-offset: 2px
+}
+
+.note {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1
+}
+
+.note sub {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--muted);
+    vertical-align: -2px
+}
+
+.key.active .note sub {
+    color: rgba(255, 255, 255, .75)
+}
+
+.hk {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    color: var(--muted);
+    border: 1px solid rgba(255, 255, 255, .13);
+    border-radius: 4px;
+    padding: 1px 5px;
+    line-height: 1.4;
+}
+
+#scope {
+    display: block;
+    width: 100%;
+    height: 120px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .025), rgba(0, 0, 0, .18));
+    margin-bottom: 16px;
+}
+
+.hint {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.9;
+    margin: 0;
+}
+
+.hint b {
+    color: #cbd5e1;
+    font-weight: 500
+}
+
+@media (max-width:640px) {
+    body {
+        padding: 20px 10px 40px
+    }
+
+    .row {
+        grid-template-columns: 36px repeat(7, 1fr);
+        gap: 5px
+    }
+
+    .row-label {
+        font-size: 11px;
+        border-radius: 9px
+    }
+
+    .row-label .full {
+        display: none
+    }
+
+    .row-label .mini {
+        display: inline
+    }
+
+    .key {
+        height: 60px;
+        border-radius: 9px;
+        gap: 4px
+    }
+
+    .note {
+        font-size: 14px
+    }
+
+    .hk {
+        display: none
+    }
+
+    .controls {
+        gap: 12px 18px;
+        padding: 12px 14px
+    }
+
+    .midi-panel {
+        padding: 12px 14px
+    }
+
+    .midi-info {
+        margin-left: 0
+    }
+
+    #scope {
+        height: 90px
+    }
+}

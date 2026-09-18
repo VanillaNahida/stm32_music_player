@@ -1,0 +1,39 @@
+# ============ Keil MDK 构建产物 ============
+*.axf
+*.hex
+*.o
+*.d
+*.crf
+*.dep
+*.lst
+*.lnp
+*.map
+*.htm
+*.build_log.htm
+*.sct
+
+# Keil 生成目录与辅助文件
+Objects/
+Listings/
+Backup/
+RTE/
+*.uvguix.*
+*.uvopt
+*.uvoptx
+
+# ============ 构建日志 / 临时文件 ============
+build_log.txt
+*.log
+
+# ============ 系统与 IDE ============
+.vscode/
+.idea/
+.vs/
+*.suo
+*.user
+Thumbs.db
+Desktop.ini
+.trae/
+
+# ============ Node.js 依赖（AudioLab） ============
+node_modules/

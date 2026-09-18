@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <link rel="icon" href="./favicon.ico" type="image/x-icon">
+  <!-- 常规字重 (400) -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/VanillaNahida/BA-Spark-Cursor/fonts/Blueaka/Blueaka.css">
+  <!-- 加粗字重 (700) -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/VanillaNahida/BA-Spark-Cursor/fonts/Blueaka_Bold/Blueaka_Bold.css">
+  <!-- 样式表 -->
+  <link rel="stylesheet" href="./index.css">
+  <!-- 《蔚蓝档案》风格点击特效 -->
+  <script src="https://cdn.jsdelivr.net/npm/ba-click-fx@1.2.25/dist/ba-click-fx.iife.js" defer></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', function () {
+      new BAClickFX.BAClickFX();
+    });
+  </script>
+  <!-- 《蔚蓝档案》风格鼠标指针 -->
+  <link rel="stylesheet" href="https://cdn.xcnahida.cn/ba-spark/BlueArchiveCursor/cursor.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>三角函数音频实验室 · MIDI 播放器</title>
+</head>
+
+<body>
+  <div class="app">
+    <h1>三角函数音频实验室 · MIDI 播放器</h1>
+    <p class="sub">
+      加载 MIDI 文件，用当前合成器音色演奏。每个音符 = 一个振荡器 <code>osc(f)</code>，<br>
+      再乘上包络 <code>A(t)</code>——衰减/延音/波形开关会直接影响 MIDI 播放的音色。
+    </p>
+
+    <!-- MIDI 面板 -->
+    <div class="midi-panel">
+      <label class="file-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        <span>打开 MIDI 文件</span>
+        <input type="file" id="midiFile">
+      </label>
+
+      <button id="playPauseBtn" class="play-btn" disabled>▶ 播放</button>
+
+      <label class="field" title="转录输出格式">
+        <span>格式</span>
+        <select id="renderFormat">
+          <option value="wav">WAV</option>
+          <option value="mp3">MP3</option>
+          <option value="c">C 数组 (.h)</option>
+        </select>
+      </label>
+      <button id="renderBtn" class="render-btn" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round" style="width:14px;height:14px;flex:none">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        <span>转录下载</span>
+      </button>
+      <button type="button" id="libraryBtn" class="render-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round" style="width:14px;height:14px;flex:none">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="m21 15-5-5L5 21" />
+        </svg>
+        <span>打开示例曲库</span>
+      </button>
+
+      <span class="midi-name" id="midiName" hidden></span>
+      <span class="midi-info" id="midiInfo">未加载 MIDI</span>
+
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progressBar">
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-thumb" id="progressThumb"></div>
+          </div>
+        </div>
+        <span class="time" id="timeDisplay">0:00 / 0:00</span>
+      </div>
+
+      <!-- 转录导出进度条（独立，不占用播放进度条） -->
+      <div class="render-progress" id="renderProgress" hidden>
+        <div class="render-bar">
+          <div class="render-fill" id="renderFill"></div>
+        </div>
+        <span class="time" id="renderLabel">转录 0%</span>
+      </div>
+    </div>
+
+    <!-- 合成器控制条 -->
+    <div class="controls">
+      <label class="switch">
+        <input type="checkbox" id="decayToggle" checked>
+        <span class="track"><span class="thumb"></span></span>
+        <span>衰减</span>
+      </label>
+
+      <div class="field" id="decayField">
+        <span>衰减时间</span>
+        <input type="range" id="decayRange" min="0.1" max="10" step="0.05" value="0.6">
+        <span class="val" id="decayVal">0.60s</span>
+      </div>
+
+      <label class="switch">
+        <input type="checkbox" id="sustainToggle" checked>
+        <span class="track"><span class="thumb"></span></span>
+        <span>延音</span>
+      </label>
+
+      <div class="field">
+        <span>波形</span>
+        <select id="waveSelect">
+          <option value="sine">正弦 sin</option>
+          <option value="triangle">三角 triangle</option>
+          <option value="square">方波 square</option>
+          <option value="sawtooth">锯齿 sawtooth</option>
+        </select>
+      </div>
+    </div>
+
+    <p class="env-hint" id="envHint"></p>
+
+    <div class="keyboard" id="keyboard"></div>
+
+    <canvas id="scope"></canvas>
+
+    <p class="hint">
+      <b>MIDI 播放：</b>打开文件后点击播放，音域不受键盘限制，MIDI 里有多少音就播多少音。<br>
+      <b>键盘演奏：</b>Q W E R T Y U（高八度） · A S D F G H J（八度） · Z X C V B N M（低八度）<br>
+      <b>提示：</b>MIDI 播放与手动演奏可以同时进行，方便对比音色。
+    </p>
+
+    <!-- 示例曲库弹窗 -->
+    <div class="modal-mask" id="libraryModal" hidden>
+      <div class="modal">
+        <div class="modal-title">示例曲库</div>
+        <div class="modal-list" id="libraryList"></div>
+        <div class="modal-foot">
+          <button type="button" class="modal-btn" id="libraryCancel">取消</button>
+          <button type="button" class="modal-btn primary" id="libraryConfirm" disabled>确定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- @tonejs/midi UMD（本地库） -->
+  <script src="libs/tonejs-midi.js"></script>
+  <!-- lamejs MP3 编码器（本地库） -->
+  <script src="libs/lame.min.js"></script>
+  <!-- MIDI C 数组导出器 -->
+  <script src="./export_c.js"></script>
+  <script src="./index.js"></script>
+</body>
+
+</html>
