@@ -68,6 +68,8 @@ static uint32_t g_k_decay;          /* 衰减指数系数（Q16.16） */
 static const MusicScore *g_cur       = 0;
 static uint32_t g_note_idx           = 0;
 static uint32_t g_spp_tick           = 0;   /* 每个 tick 的采样数（由乐谱 tick_us 计算） */
+static uint32_t g_tick_us            = 1u;  /* 乐谱时间单位（微秒/tick），用于固定时长换算 */
+static int32_t  g_ccr_err            = 0;   /* PWM 量化误差（一阶噪声整形用） */
 static volatile uint32_t g_sample_cnt = 0;
 static volatile uint8_t  g_playing   = 0;
 static volatile uint8_t  g_finished  = 0;
@@ -114,7 +116,14 @@ static void NoteOn(const ScoreNote *n)
     v->gain         = (int32_t)INIT_G;
     v->sus_target   = SUS_ON ? ((uint32_t)v->peak * MUSIC_SUSTAIN_GAIN_Q8) >> 8u : INIT_G;
     v->attack_end   = g_sample_cnt + g_attack_ns;
-    v->end_sample   = g_sample_cnt + (uint32_t)n->duration * g_spp_tick;
+    /* 音符时长：遵循 MIDI（乐谱 duration）或统一固定时长（config.h） */
+    if (MUSIC_DURATION_FROM_MIDI != 0) {
+        v->end_sample = g_sample_cnt + (uint32_t)n->duration * g_spp_tick;
+    } else {
+        uint32_t dur_ticks = ((uint32_t)MUSIC_NOTE_DURATION_MS * 1000u) / g_tick_us;
+        if (dur_ticks < 1u) dur_ticks = 1u;
+        v->end_sample = g_sample_cnt + dur_ticks * g_spp_tick;
+    }
     v->rel_ns       = g_release_ns;
     v->rel_step     = 0u;
 }
@@ -211,12 +220,21 @@ void Music_ISR(void)
         acc += WaveSample(v);
     }
 
-    /* 3. 混合样本写入 PWM（Q16.16 → 占空比，钳位到 [0, ARR]） */
+    /* 3. 混合样本写入 PWM（Q16.16 → 占空比，钳位到 [0, ARR]）
+     *    一阶噪声整形：把舍入掉的余数反馈到下一帧，量化噪声被推
+     *    到 PWM 载波附近的高频，可闻底噪显著下降 */
     {
-        int32_t ccr = (int32_t)(ARR_VALUE >> 1) + ((acc * (int32_t)ARR_VALUE) >> 17);
-        if (ccr < 0) ccr = 0;
-        else if (ccr > (int32_t)ARR_VALUE) ccr = (int32_t)ARR_VALUE;
-        TIM_SetCompare1(TIM3, (uint32_t)ccr);
+        int32_t prod = acc * (int32_t)ARR_VALUE;
+        int32_t raw;
+        prod += g_ccr_err;                    /* 叠加上一帧的舍入余数 */
+        raw  = prod >> 17;                    /* 17bit 量化输出 */
+        g_ccr_err = prod - (raw << 17);       /* 保留余数（含符号），下一帧反馈 */
+        {
+            int32_t ccr = (int32_t)(ARR_VALUE >> 1) + raw;
+            if (ccr < 0) ccr = 0;
+            else if (ccr > (int32_t)ARR_VALUE) ccr = (int32_t)ARR_VALUE;
+            TIM_SetCompare1(TIM3, (uint32_t)ccr);
+        }
     }
 
     /* 4. 自然结束检测：音符播完且所有 voice 释放完毕 */
@@ -324,13 +342,16 @@ void Music_Play(const MusicScore *score)
     g_sample_cnt = 0u;
     g_finished   = 0u;
     /* 按乐谱时间单位换算每个 tick 的采样数（长曲自动 10ms 也能正确播放） */
-    g_spp_tick   = (MUSIC_SAMPLE_RATE / 1000u) * (score->tick_us / 1000u);
+    g_tick_us    = score->tick_us;
+    if (g_tick_us == 0u) g_tick_us = 1u;
+    g_spp_tick   = (MUSIC_SAMPLE_RATE / 1000u) * (g_tick_us / 1000u);
     if (g_spp_tick == 0u) g_spp_tick = 1u;
     for (i = 0u; i < MUSIC_MAX_POLYPHONY; i++) {
         g_voices[i].active = 0;
         g_voices[i].env    = ENV_OFF;
     }
     TIM_SetCompare1(TIM3, ARR_VALUE / 2);
+    g_ccr_err  = 0;                          /* 重置量化误差 */
     g_playing = 1;
     TIM_Cmd(TIM3, ENABLE);
 }
@@ -358,6 +379,7 @@ void Music_Stop(void)
         g_voices[i].env    = ENV_OFF;
     }
     TIM_SetCompare1(TIM3, ARR_VALUE / 2);
+    g_ccr_err  = 0;                          /* 重置量化误差 */
     g_playing  = 0;
     g_finished = 1;
 }

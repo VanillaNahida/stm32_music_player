@@ -743,6 +743,36 @@
             </File>
           </Files>
         </Group>
+        <Group>
+          <GroupName>Music</GroupName>
+          <Files>
+            <File>
+              <FileName>ballade_pour_adeline.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\music\ballade_pour_adeline.h</FilePath>
+            </File>
+            <File>
+              <FileName>china_x.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\music\china_x.h</FilePath>
+            </File>
+            <File>
+              <FileName>Constant_Moderato.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\music\Constant_Moderato.h</FilePath>
+            </File>
+            <File>
+              <FileName>re_aoharu.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\music\re_aoharu.h</FilePath>
+            </File>
+            <File>
+              <FileName>roujin_to_umi.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\music\roujin_to_umi.h</FilePath>
+            </File>
+          </Files>
+        </Group>
       </Groups>
     </Target>
   </Targets>

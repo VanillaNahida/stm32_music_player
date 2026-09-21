@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chiptune Lab · STM32 音乐盒音色调试台</title>
+<style>
+:root{
+  --bg:#0b0d12; --panel:#141821; --panel2:#11151d; --line:rgba(255,255,255,.08);
+  --text:#e8ebf2; --muted:#8b93a8; --accent:#5eead4; --accent2:#a78bfa; --warn:#fbbf24; --bad:#f87171;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:radial-gradient(circle at 50% -10%, #1b2132 0%, #0b0d12 62%);
+  color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  display:flex; justify-content:center; padding:26px 16px 70px; -webkit-tap-highlight-color:transparent;
+}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.app{width:100%;max-width:1220px}
+h1{font-size:19px;font-weight:600;letter-spacing:.04em;margin:0 0 8px}
+h1 span{color:var(--accent)}
+.sub{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 18px}
+.sub code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:13px;font-weight:600;margin:0 0 12px;color:var(--accent);letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+.card h2 .badge{font-size:10px;font-weight:400;color:var(--warn);border:1px solid rgba(251,191,36,.35);border-radius:20px;padding:1px 7px;letter-spacing:0}
+.grid{display:grid;grid-template-columns:390px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:1000px){.grid{grid-template-columns:1fr}}
+.drop{border:1.5px dashed rgba(255,255,255,.16);border-radius:12px;padding:14px;text-align:center;transition:.16s;cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(94,234,212,.05)}
+.drop b{color:var(--accent);font-weight:600}
+.drop small{color:var(--muted);display:block;margin-top:4px;font-size:12px}
+input[type=file]{display:none}
+.btn{background:rgba(255,255,255,.07);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 13px;font-size:13px;cursor:pointer;transition:.14s;font-family:inherit}
+.btn:hover:not(:disabled){background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.2)}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+.btn.primary{background:rgba(94,234,212,.16);border-color:rgba(94,234,212,.45);color:var(--accent)}
+.btn.primary:hover:not(:disabled){background:rgba(94,234,212,.26)}
+.btn.rec{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.4);color:#fca5a5}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.toolbar .sep{width:1px;height:22px;background:var(--line);margin:0 3px}
+.pill{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:3px 10px;white-space:nowrap}
+.row{display:grid;grid-template-columns:104px 1fr 62px;gap:8px;align-items:center;margin-bottom:9px}
+.row>label{font-size:12.5px;color:#c7cdda}
+.row .val{font-size:12px;color:var(--accent);text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace}
+.row.wide{grid-template-columns:1fr;gap:6px}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:3px;background:rgba(255,255,255,.13);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid #0b0d12}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border:2px solid #0b0d12;border-radius:50%;background:var(--accent);cursor:pointer}
+input[type=range]:disabled{opacity:.35}
+select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:12.5px;width:100%;font-family:inherit}
+.sw{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#c7cdda;cursor:pointer;margin-bottom:9px}
+.sw input{accent-color:#5eead4;width:15px;height:15px;cursor:pointer}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.6;margin:-3px 0 10px;white-space:pre-line}
+.hint b{color:var(--warn);font-weight:500}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px}
+.metric{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+.metric .k{font-size:11px;color:var(--muted);margin-bottom:4px}
+.metric .v{font-size:15px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.metric .v.ok{color:var(--accent)}
+.metric .v.warn{color:var(--warn)}
+.metric .v.bad{color:var(--bad)}
+canvas{display:block;width:100%;border-radius:9px;background:#0d1119;border:1px solid var(--line)}
+.tracks{margin-top:4px}
+.trow{display:grid;grid-template-columns:22px 1fr 96px 92px 54px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.045);font-size:12.5px}
+.trow:last-child{border-bottom:none}
+.trow .tname{color:#c7cdda;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .tname em{color:var(--muted);font-style:normal;font-size:11px;margin-left:5px}
+.trow input[type=range]{height:3px}
+.trow .sw{margin:0}
+progress{width:100%;height:5px}
+.pbar{position:relative;height:7px;border-radius:4px;background:rgba(255,255,255,.1);cursor:pointer;overflow:hidden;margin:14px 0 6px}
+.pbar .fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,#5eead4,#a78bfa);border-radius:4px}
+.tline{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace}
+pre{background:#0d1119;border:1px solid var(--line);border-radius:9px;padding:12px;font-size:11.5px;line-height:1.65;overflow:auto;max-height:330px;margin:0;color:#cfd6e4;white-space:pre}
+.log{font-size:12px;color:var(--muted);line-height:1.8;max-height:120px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace}
+.log .e{color:var(--bad)}
+.log .g{color:var(--accent)}
+.log .w{color:var(--warn)}
+.footrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tag{display:inline-block;font-size:10.5px;color:var(--warn);border:1px solid rgba(251,191,36,.35);border-radius:20px;padding:0 6px;margin-left:6px;vertical-align:1px}
+.statline{font-size:12px;color:var(--muted);line-height:1.9}
+.statline b{color:#dfe4ee;font-weight:500}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Chiptune Lab <span>·</span> STM32 音乐盒音色调试台</h1>
+  <p class="sub">
+    逐样本复刻 <code>Hardware/Music.c</code> 的定点合成引擎（32bit 相位累加器 + Q16.16 指数包络 + 8~16 复音混音 + PWM 量化噪声整形），
+    所以<b>你听到的就是烧录后的声音</b>。导入 MIDI → 调参数 → 一键导出 <code>config.h</code> / 乐谱 <code>.h</code> / WAV。
+    完全离线单文件，双击即可打开，不需要 PHP 或任何外部库。
+  </p>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <b>点击选择 MIDI 文件</b>，或把 .mid 拖进来
+      <small>推荐 2 轨（旋律 + 伴奏）文件；格式 0/1 均可，自动解析 tempo 变化</small>
+      <input type="file" id="file" accept=".mid,.midi,audio/midi" />
+    </div>
+    <div class="toolbar" style="margin:12px 0 0">
+      <button class="btn primary" id="play" disabled>▶ 播放</button>
+      <button class="btn" id="stop" disabled>■ 停止</button>
+      <label class="sw" style="margin:0"><input type="checkbox" id="loop" /> 循环</label>
+      <span class="sep"></span>
+      <span class="pill">试听音量</span>
+      <input type="range" id="listenVol" min="0" max="150" value="100" style="width:96px" />
+      <span class="sep"></span>
+      <span class="pill" id="loadInfo">未加载文件</span>
+    </div>
+    <div class="pbar" id="pbar"><div class="fill" id="pfill"></div></div>
+    <div class="tline"><span id="curTime">0:00</span><span id="rstate">就绪</span><span id="totTime">0:00</span></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>合成参数<span class="badge" style="color:var(--muted);border-color:var(--line)">对应 config.h</span></h2>
+        <div id="panel"></div>
+      </div>
+      <div class="card">
+        <h2>音轨<span class="badge" style="color:var(--muted);border-color:var(--line)">MUSIC_TRACK_*</span></h2>
+        <div class="tracks" id="tracks"><div class="hint" style="margin:0">加载 MIDI 后显示音轨列表</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>状态与诊断</h2>
+        <div class="statline" id="fileInfo" style="margin-bottom:12px">尚未加载 MIDI</div>
+        <div class="metrics" id="metrics"></div>
+        <div class="hint" id="advice" style="margin:12px 0 0"></div>
+      </div>
+
+      <div class="card">
+        <h2>波形 / 包络</h2>
+        <canvas id="wave" height="200"></canvas>
+        <div class="hint" style="margin:8px 0 6px">峰值包络（单音，velocity=127，取最大轨音量）——起音 6ms 指数上升，随后指数衰减到延音电平，音符结束线性淡出：</div>
+        <canvas id="env" height="110"></canvas>
+        <div class="hint" id="envInfo" style="margin:8px 0 0"></div>
+      </div>
+
+      <div class="card">
+        <h2>导出</h2>
+        <div class="footrow" style="margin:0 0 12px">
+          <button class="btn primary" id="dlCfg">下载 config.h</button>
+          <button class="btn" id="copyCfg">复制 config.h</button>
+          <button class="btn" id="dlScore" disabled>下载乐谱 .h</button>
+          <button class="btn" id="dlWav" disabled>下载 WAV</button>
+        </div>
+        <pre id="cfgOut">加载 MIDI 后在此预览 config.h</pre>
+        <div class="log" id="log" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==== CHIPTUNE_CORE_BEGIN ==== */
+/* ============================================================
+ * Chiptune Lab 核心：MIDI 解析 / 乐谱量化 / Music.c 定点引擎仿真 / 导出
+ * 纯逻辑，不依赖 DOM —— 可在 Node 下直接 require 做回归测试。
+ * ============================================================ */
+(function (global, factory) {
+  'use strict';
+  if (typeof module === 'object' && typeof module.exports === 'object') { module.exports = factory(); }
+  else { global.ChiptuneCore = factory(); }
+})(typeof window !== 'undefined' ? window : globalThis, function () {
+  'use strict';
+
+  var NL = String.fromCharCode(10);
+
+  /* ---------- 与 Music.c 一一对应的常量 ---------- */
+  var TIM3_CLK      = 72000000;   /* TIM3 计数时钟 */
+  var PEAK_Q16      = 16384;      /* 0.25 * 2^16 */
+  var INIT_G        = 7;          /* 0.0001 * 2^16 */
+  var PEAK_REF_Q16  = 14745;      /* 0.9*0.25 * 2^16 */
+  var ENV_OFF = 0, ENV_ATTACK = 1, ENV_DECAY = 2, ENV_SUSTAIN = 3, ENV_RELEASE = 4;
+  var WAVE_SINE = 0, WAVE_TRIANGLE = 1, WAVE_SQUARE = 2, WAVE_SAWTOOTH = 3;
+  var WAVE_MACRO = ['WAVE_SINE', 'WAVE_TRIANGLE', 'WAVE_SQUARE', 'WAVE_SAWTOOTH'];
+  var DUTY_NAME = ['12.5%', '25%', '50%', '75%'];
+  var DUTY_Q32  = [0x20000000, 0x40000000, 0x80000000, 0xC0000000];
+  /* 硬件脉冲是单极性 0..V，隔直后高/低电平为 +2(1-d) / -2d（峰峰恒为 2，均值 0） */
+  var DUTY_HI_Q16 = [114688, 98304, 65536, 32768];
+  var DUTY_LO_Q16 = [16384, 32768, 65536, 98304];
+  /* NES 式 15bit LFSR：自由运行（不随音符复位），否则每个音符都从同一初值开始会产生直流偏置 */
+  var g_lfsr = 1;
+
+  /* 默认配置 = 当前 src/User/config.h 的取值 */
+  function defaultConfig() {
+    return {
+      sampleRate: 32000, maxPolyphony: 10, masterVolumeQ8: 256,
+      waveform: WAVE_TRIANGLE,
+      dutyIndex: 2, quantize4bit: false, steppedTriangle: false,
+      noiseClockMul: 8,
+      durationFromMidi: false, noteDurationMs: 300,
+      attackMs: 6, decayEnable: true, decayMs: 1500,
+      sustainEnable: true, sustainGainQ8: 255,
+      releaseFollowDecay: true, releaseMs: 50,
+      splitByChannel: false, dropPercussion: false
+    };
+  }
+
+  /* ---------- 查表 ---------- */
+  function buildPhaseInc(sr) {
+    var t = new Uint32Array(128);
+    for (var i = 0; i < 128; i++) {
+      var f = 440 * Math.pow(2, (i - 69) / 12);
+      t[i] = Math.floor(f * 4294967296 / sr) >>> 0;
+    }
+    return t;
+  }
+  function buildSineLut() {
+    var t = new Int8Array(256);
+    for (var i = 0; i < 256; i++) { t[i] = Math.floor(Math.sin(6.283185307179586 * i / 256) * 127 + 0.5); }
+    return t;
+  }
+  /* NES 三角波：32 级阶梯（16 个电平） */
+  var TRI_STEP_Q16 = (function () {
+    var t = new Int32Array(32);
+    for (var i = 0; i < 32; i++) {
+      var lv = i < 16 ? i : 31 - i;           /* 0..15 */
+      t[i] = Math.round((lv / 15 * 2 - 1) * 65536);
+    }
+    return t;
+  })();
+
+  /* ---------- 导出器（与 AudioLab/export_c.js 输出格式完全一致） ---------- */
+  var TICK_US_DEFAULT = 5000, TICK_US_MAX = 10000, TICK_LIMIT = 65534;
+
+  function toTick(sec, tickUs) { return Math.max(0, Math.round(sec * 1e6 / tickUs)); }
+
+  function stripExt(name) {
+    var i = String(name || 'score').lastIndexOf('.');
+    return i > 0 ? String(name).slice(0, i) : String(name || 'score');
+  }
+
+  /* 秒 -> tick（时间单位自适应：默认 5ms，超 uint16 上限改 10ms） */
+  function quantizeNotes(notes, tickUs) {
+    var out = new Array(notes.length);
+    for (var i = 0; i < notes.length; i++) {
+      var n = notes[i];
+      out[i] = {
+        time: toTick(n.time, tickUs),
+        duration: Math.max(1, toTick(n.duration, tickUs)),
+        midi: Math.max(0, Math.min(127, Math.round(n.midi))),
+        velocity: Math.max(1, Math.min(127, Math.round(n.velocity))),
+        track: Math.max(0, Math.min(15, n.track || 0))
+      };
+    }
+    return out;
+  }
+  function pickTickUs(notes) {
+    var totalMs = songTotalMs(notes);
+    return toTick(totalMs / 1000, TICK_US_DEFAULT) > TICK_LIMIT ? TICK_US_MAX : TICK_US_DEFAULT;
+  }
+  function songTotalMs(notes) {
+    var m = 0;
+    for (var i = 0; i < notes.length; i++) {
+      var e = (notes[i].time + notes[i].duration) * 1000;
+      if (e > m) m = e;
+    }
+    return m;
+  }
+
+  /* 生成乐谱头文件；velocity 取 MIDI 原始 0~127 */
+  function generateScoreHeader(songName, notes, trackCount, opt) {
+    opt = opt || {};
+    var totalMs = songTotalMs(notes);
+    var tickUs = opt.tickUs || pickTickUs(notes);
+    var qn = opt.quantized || quantizeNotes(notes, tickUs);
+    var safeName = stripExt(songName);
+    var ident = safeName.replace(/[^A-Za-z0-9_]/g, '_');
+    if (!ident.length) ident = 'score';
+    var guard = '__SCORE_' + ident.toUpperCase() + '_H';
+
+    var perTrack = [];
+    for (var j = 0; j < qn.length; j++) {
+      var t = qn[j].track;
+      while (perTrack.length <= t) perTrack.push(0);
+      perTrack[t]++;
+    }
+    var trackDesc = [];
+    for (var k = 0; k < perTrack.length; k++) { trackDesc.push('tr' + k + '=' + perTrack[k]); }
+
+    var L = [];
+    L.push('/* ============================================================');
+    L.push(' * 由 AudioLab MIDI C 数组导出器生成，请勿手工修改');
+    L.push(' * 曲名: ' + safeName);
+    L.push(' * 音符数: ' + qn.length + '   时长: ' + (totalMs / 1000).toFixed(1) + ' s' +
+           '   轨道数: ' + trackCount + '   ' + trackDesc.join(' '));
+    L.push(' * 时间单位: ' + tickUs + ' us   (uint16，最大 ' + (TICK_LIMIT * tickUs / 1e6).toFixed(1) + ' s)');
+    L.push(' * ============================================================ */');
+    L.push('#ifndef ' + guard);
+    L.push('#define ' + guard);
+    L.push('');
+    L.push('#include "Music.h"');
+    L.push('');
+    L.push('#define SCORE_NAME            "' + safeName.replace(/"/g, "'") + '"');
+    L.push('#define SCORE_NOTE_COUNT      ' + qn.length + 'u');
+    L.push('#define SCORE_TOTAL_TIME_MS   ' + Math.round(totalMs) + 'u');
+    L.push('#define SCORE_TICK_US         ' + tickUs + 'u');
+    L.push('');
+    L.push('/* { 起始时刻, 时长, MIDI音号, 力度, 音轨号 } 单位：tick */');
+    L.push('static const ScoreNote g_score[SCORE_NOTE_COUNT] = {');
+    var BUF = [];
+    for (var n = 0; n < qn.length; n++) {
+      var q = qn[n];
+      BUF.push('    {' + q.time + ', ' + q.duration + ', ' + q.midi + ', ' + q.velocity + ', ' + q.track + '},');
+    }
+    L.push(BUF.join(NL));
+    L.push('};');
+    L.push('');
+    L.push('#endif');
+    return {
+      text: L.join(NL) + NL, quantized: qn, tickUs: tickUs,
+      totalMs: Math.round(totalMs), bytes: qn.length * 8
+    };
+  }
+
+  /* ============================================================
+   * 标准 MIDI 文件解析（自带，无依赖）
+   * ============================================================ */
+  function parseMidi(arrayBuffer) {
+    var dv = new DataView(arrayBuffer);
+    var p = 0;
+    function u8() { return dv.getUint8(p++); }
+    function u16() { var v = dv.getUint16(p, false); p += 2; return v; }
+    function u32() { var v = dv.getUint32(p, false); p += 4; return v; }
+    function tag() {
+      var s = String.fromCharCode(dv.getUint8(p), dv.getUint8(p + 1), dv.getUint8(p + 2), dv.getUint8(p + 3));
+      p += 4; return s;
+    }
+    if (dv.byteLength < 14 || tag() !== 'MThd') throw new Error('不是标准 MIDI 文件（未找到 MThd 头）');
+    var hlen = u32(), format = u16(), ntrks = u16(), division = u16();
+    if (hlen > 6) p += hlen - 6;
+    if (division & 0x8000) throw new Error('不支持 SMPTE 时间基准的 MIDI 文件');
+    var tpq = division || 480;
+
+    /* 收集 MTrk 数据块 */
+    var chunks = [];
+    while (p + 8 <= dv.byteLength) {
+      var tk = tag(), len = u32();
+      if (tk === 'MTrk') { chunks.push({ start: p, len: len }); }
+      p += len;
+    }
+    if (!chunks.length) throw new Error('文件中没有 MTrk 音轨块');
+
+    var tempos = [];
+    var trackNotes = [];   /* 每轨： [{tick, midi, velocity, channel, endTick}] */
+
+    for (var ti = 0; ti < chunks.length; ti++) {
+      var st = chunks[ti].start, en = st + chunks[ti].len, q = st, tick = 0, running = 0;
+      var open = {};        /* key: ch*128+note -> 栈 */
+      var pending = [];     /* {tick, endTick, midi, velocity, channel, seq} */
+      var seq = 0;
+      while (q < en) {
+        var b, v = 0;
+        do { b = dv.getUint8(q++); v = (v << 7) | (b & 0x7f); } while (b & 0x80);
+        tick += v;
+        var status = dv.getUint8(q++);
+        if (status < 0x80) { q--; status = running; }
+        else { running = status; }
+        var type = status & 0xf0, ch = status & 0x0f;
+        if (status === 0xff) {
+          var mt = dv.getUint8(q++), ml = 0;
+          do { b = dv.getUint8(q++); ml = (ml << 7) | (b & 0x7f); } while (b & 0x80);
+          if (mt === 0x51 && ml === 3) {
+            tempos.push({ tick: tick, us: (dv.getUint8(q) << 16) | (dv.getUint8(q + 1) << 8) | dv.getUint8(q + 2) });
+          }
+          q += ml;
+        } else if (status === 0xf0 || status === 0xf7) {
+          var sl = 0;
+          do { b = dv.getUint8(q++); sl = (sl << 7) | (b & 0x7f); } while (b & 0x80);
+          q += sl;
+        } else if (type === 0x90 || type === 0x80) {
+          var d1 = dv.getUint8(q++), d2 = dv.getUint8(q++);
+          var key = ch * 128 + d1;
+          if (type === 0x90 && d2 > 0) {
+            if (!open[key]) open[key] = [];
+            open[key].push({ tick: tick, endTick: -1, midi: d1, velocity: d2, channel: ch, seq: seq++ });
+          } else {
+            var stack = open[key];
+            if (stack && stack.length) {
+              var on = stack.pop();
+              on.endTick = tick;
+              pending.push(on);
+            }
+          }
+        } else if (type === 0xa0 || type === 0xb0 || type === 0xe0) { q += 2; }
+        else if (type === 0xc0 || type === 0xd0) { q += 1; }
+        else { q += 1; }
+      }
+      /* 未闭合的音符：以轨道结束处收尾 */
+      for (var kk in open) {
+        var arr = open[kk];
+        while (arr.length) { var o = arr.pop(); o.endTick = tick; pending.push(o); }
+      }
+      /* 按「起始时刻 + note-on 事件先后」排序：与 tonejs-midi / AudioLab 导出的顺序逐位一致 */
+      pending.sort(function (a, b) { return (a.tick - b.tick) || (a.seq - b.seq); });
+      trackNotes.push(pending);
+    }
+
+    /* tempo 表 -> tick 转秒 */
+    var evs = tempos.slice().sort(function (a, b) { return a.tick - b.tick; });
+    var pts = [];
+    if (!evs.length || evs[0].tick > 0) pts.push({ tick: 0, sec: 0, us: 500000 });
+    var sec = 0, lastTick = 0, us = 500000;
+    for (var e = 0; e < evs.length; e++) {
+      if (evs[e].tick < lastTick) continue;
+      sec += (evs[e].tick - lastTick) * us / 1e6 / tpq;
+      lastTick = evs[e].tick; us = evs[e].us;
+      pts.push({ tick: evs[e].tick, sec: sec, us: us });
+    }
+    function tickToSec(tick) {
+      var lo = 0, hi = pts.length - 1;
+      while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (pts[mid].tick <= tick) lo = mid; else hi = mid - 1; }
+      var q0 = pts[lo];
+      return q0.sec + (tick - q0.tick) * q0.us / 1e6 / tpq;
+    }
+
+    /* 展开为音符列表（time/duration 单位：秒） */
+    var raw = [];
+    for (var t2 = 0; t2 < trackNotes.length; t2++) {
+      var list = trackNotes[t2];
+      for (var j2 = 0; j2 < list.length; j2++) {
+        var nn = list[j2];
+        var t0 = tickToSec(nn.tick), t1 = tickToSec(nn.endTick);
+        raw.push({
+          time: t0, duration: Math.max(0.001, t1 - t0), midi: nn.midi,
+          velocity: nn.velocity, track: t2, channel: nn.channel
+        });
+      }
+    }
+    var duration = 0;
+    for (var d = 0; d < raw.length; d++) { var ee = raw[d].time + raw[d].duration; if (ee > duration) duration = ee; }
+    return { format: format, division: tpq, tempoCount: pts.length, rawNotes: raw, duration: duration, trackCount: chunks.length };
+  }
+
+  /* 按轨（可选按通道）分组，并应用屏蔽规则；保持 AudioLab 的音符顺序 */
+  function buildGroups(parsed, cfg) {
+    var map = {}, order = [];
+    for (var i = 0; i < parsed.rawNotes.length; i++) {
+      var n = parsed.rawNotes[i];
+      if (cfg.dropPercussion && n.channel === 9) continue;
+      var gid = cfg.splitByChannel ? (n.track * 16 + n.channel) : n.track;
+      var g = map[gid];
+      if (!g) {
+        g = { id: gid, track: n.track, channel: cfg.splitByChannel ? n.channel : -1, notes: [] };
+        map[gid] = g; order.push(g);
+      }
+      g.notes.push(n);
+    }
+    order.sort(function (a, b) { return a.id - b.id; });
+    var collected = [];
+    for (var k = 0; k < order.length; k++) {
+      var gg = order[k];
+      for (var m = 0; m < gg.notes.length; m++) {
+        var q = gg.notes[m];
+        collected.push({ time: q.time, duration: q.duration, midi: q.midi, velocity: q.velocity, track: k });
+        gg.notes[m] = q;
+      }
+      gg.notes.sort(function (a, b) { return a.time - b.time; });
+    }
+    collected.sort(function (a, b) { return a.time - b.time; });   /* 稳定排序：与 export_c.js 一致 */
+    return { groups: order, notes: collected };
+  }
+
+  function channelMask(g) {
+    if (g.channel >= 0) return [g.channel];
+    var seen = {}, out = [];
+    for (var i = 0; i < g.notes.length; i++) {
+      var c = g.notes[i].channel;
+      if (!seen[c]) { seen[c] = 1; out.push(c); }
+    }
+    out.sort(function (a, b) { return a - b; });
+    return out;
+  }
+
+  /* ============================================================
+   * Music.c 定点引擎仿真
+   * ============================================================ */
+  function envK(from, to, ns) {
+    if (!ns) return 0;
+    return Math.floor(Math.exp(Math.log(to / from) / ns) * 65536) >>> 0;
+  }
+  function peakGainQ16(velocity, trackVolQ8, masterQ8) {
+    var num = masterQ8 * trackVolQ8 * velocity * PEAK_Q16;   /* < 2^53 */
+    return Math.floor(num / (256 * 256 * 127));
+  }
+  function deriveConstants(cfg, tickUs) {
+    var sr = cfg.sampleRate;
+    var perMs = Math.floor(sr / 1000);
+    var attackNs  = perMs * cfg.attackMs;   if (!attackNs) attackNs = 1;
+    var decayNs   = perMs * cfg.decayMs;    if (!decayNs) decayNs = 1;
+    var releaseNs = cfg.releaseFollowDecay ? (cfg.decayEnable ? decayNs : perMs * 50) : Math.max(1, perMs * cfg.releaseMs);
+    var kAttack = envK(INIT_G, PEAK_REF_Q16, attackNs);
+    var kDecay = cfg.sustainEnable
+      ? envK(PEAK_REF_Q16, PEAK_REF_Q16 * 0.55, decayNs)
+      : envK(PEAK_REF_Q16, INIT_G, decayNs);
+    return {
+      sampleRate: sr,
+      ARR: Math.floor(TIM3_CLK / sr) - 1,
+      sppTick: Math.max(1, perMs * Math.floor(tickUs / 1000)),
+      attackNs: attackNs, decayNs: decayNs, releaseNs: releaseNs,
+      kAttack: kAttack, kDecay: kDecay,
+      phaseInc: buildPhaseInc(sr),
+      sineLut: cfg.waveform === WAVE_SINE ? buildSineLut() : null,
+      peakFull: peakGainQ16(127, 256, cfg.masterVolumeQ8)
+    };
+  }
+
+  /* 单音包络曲线（与引擎同一套算式，仅推进 gain，不产生波形） */
+  function envelopeCurve(cfg, tickUs, noteDurMs, trackVolQ8) {
+    var d = deriveConstants(cfg, tickUs);
+    var sr = d.sampleRate;
+    var peak = peakGainQ16(127, trackVolQ8 === undefined ? 256 : trackVolQ8, cfg.masterVolumeQ8);
+    var susTarget = cfg.sustainEnable ? ((peak * cfg.sustainGainQ8) >>> 8) : INIT_G;
+    var nEnd = Math.max(1, Math.round(noteDurMs * sr / 1000));
+    var total = nEnd + Math.max(d.releaseNs, 20000) + 2;   /* 释放实测可能远长于 rel_ns */
+    var out = new Float32Array(total);
+    var env = ENV_ATTACK, gain = INIT_G, relStep = 0, attackEnd = d.attackNs;
+    var marks = { attackEnd: 0, decayEnd: 0, noteEnd: 0, releaseEnd: 0 };
+    for (var s = 0; s < total; s++) {
+      if (s >= nEnd && env !== ENV_RELEASE) {
+        env = ENV_RELEASE;
+        relStep = Math.max(1, Math.floor(gain / d.releaseNs));
+        marks.noteEnd = s;
+      }
+      if (env === ENV_ATTACK) {
+        var g = gain, ng = (Math.imul(g, d.kAttack) >>> 0) >>> 16;
+        if (ng <= g) ng = g + 1;
+        gain = ng > peak ? peak : ng;
+        if (s >= attackEnd) { env = cfg.decayEnable ? ENV_DECAY : ENV_SUSTAIN; marks.attackEnd = s; }
+      } else if (env === ENV_DECAY) {
+        gain = (Math.imul(gain, d.kDecay) >>> 0) >>> 16;
+        if (gain <= susTarget) {
+          marks.decayEnd = s;
+          if (cfg.sustainEnable) { gain = susTarget; env = ENV_SUSTAIN; }
+          else { gain = 0; env = ENV_OFF; }
+        }
+      } else if (env === ENV_RELEASE) {
+        if (gain <= relStep) { gain = 0; marks.releaseEnd = s; out[s] = 0; break; }
+        gain -= relStep;
+      }
+      out[s] = gain / 65536;
+    }
+    return { curve: out, peak: peak / 65536, relStep: relStep, marks: marks, releaseNs: d.releaseNs,
+             kDecay: d.kDecay, kAttack: d.kAttack, total: total };
+  }
+
+  /* 分块渲染器：每次 step() 处理 nSamples 个样本，可驱动进度条 */
+  function createRenderer(quantizedNotes, tickUs, cfg, maxSamples) {
+    var d = deriveConstants(cfg, tickUs);
+    var sr = d.sampleRate, ARR = d.ARR, half = ARR >> 1;
+    var count = quantizedNotes.length;
+    var trackEnable = cfg.trackEnable || [];
+    var trackVol    = cfg.trackVolumeQ8 || [];
+    var trackNoise  = cfg.trackNoise || [];
+    var nv = Math.max(1, cfg.maxPolyphony | 0);
+    var voices = new Array(nv);
+    for (var i = 0; i < nv; i++) {
+      voices[i] = { active: 0, env: ENV_OFF, phase: 0, inc: 0, gain: 0, peak: 0, susTarget: 0,
+                    attackEnd: 0, endSample: 0, relStep: 0, relNs: 1, noise: 0, lfsr: 1,
+                    qStep: 0, invStep: 0, noiseMul: 1 };
+    }
+    var userCap = maxSamples > 0;
+    var cap;
+    if (userCap) { cap = Math.min(maxSamples, 0x7FFFFFF); }
+    else {
+      var lastEnd = 0;
+      for (var z = 0; z < count; z++) {
+        var e2 = (quantizedNotes[z].time + quantizedNotes[z].duration) * d.sppTick;
+        if (e2 > lastEnd) lastEnd = e2;
+      }
+      cap = Math.min(0x7FFFFFF, Math.ceil(lastEnd + d.releaseNs + sr * 0.25) + 8);
+    }
+    var out = new Float32Array(cap);
+    var noteIdx = 0, sampleCnt = 0, ccrErr = 0, writePos = 0;
+    var finished = false, truncated = false;
+    var stats = { maxVoices: 0, steals: 0, trackMuted: 0, outOfRange: 0, clipped: 0, peak: 0,
+                  sumSq: 0, notesStarted: 0, firstClipAt: -1 };
+
+    function noteOn(n) {
+      var tr = n.track;
+      if (tr >= trackEnable.length) { stats.outOfRange++; return; }
+      if (!trackEnable[tr]) { stats.trackMuted++; return; }
+      var v = null, oldest = 4294967295, k;
+      for (k = 0; k < nv; k++) {
+        if (!voices[k].active) { v = voices[k]; break; }
+        if (voices[k].endSample < oldest) { oldest = voices[k].endSample; v = voices[k]; }
+      }
+      if (!v) return;
+      if (v.active) stats.steals++;
+      var isNoise = !!trackNoise[tr];
+      v.active = 1; v.env = ENV_ATTACK; v.phase = 0; v.noise = isNoise ? 1 : 0;
+      v.inc = isNoise ? (Math.imul(d.phaseInc[n.midi] >>> 0, cfg.noiseClockMul | 0) >>> 0) : d.phaseInc[n.midi];
+      v.peak = peakGainQ16(n.velocity, trackVol[tr], cfg.masterVolumeQ8);
+      v.gain = INIT_G;
+      v.susTarget = cfg.sustainEnable ? ((v.peak * cfg.sustainGainQ8) >>> 8) : INIT_G;
+      v.attackEnd = sampleCnt + d.attackNs;
+      if (cfg.durationFromMidi) { v.endSample = sampleCnt + n.duration * d.sppTick; }
+      else {
+        var durTicks = Math.floor((cfg.noteDurationMs * 1000) / tickUs);
+        if (durTicks < 1) durTicks = 1;
+        v.endSample = sampleCnt + durTicks * d.sppTick;
+      }
+      v.relNs = d.releaseNs;
+      if (cfg.quantize4bit) { v.qStep = v.peak / 15; v.invStep = v.peak > 0 ? 15 / v.peak : 0; }
+      stats.notesStarted++;
+    }
+
+    function step(nSamples) {
+      if (finished) return 0;
+      var written = 0;
+      for (var s = 0; s < nSamples; s++) {
+        /* 1. 调度 */
+        while (noteIdx < count) {
+          var nn = quantizedNotes[noteIdx];
+          if (sampleCnt < nn.time * d.sppTick) break;
+          noteOn(nn); noteIdx++;
+        }
+        /* 2. 渲染 voice */
+        var acc = 0, live = 0, k;
+        for (k = 0; k < nv; k++) {
+          var v = voices[k];
+          if (!v.active) continue;
+          if (sampleCnt >= v.endSample && v.env !== ENV_RELEASE) {
+            v.env = ENV_RELEASE;
+            v.relStep = Math.max(1, Math.floor(v.gain / v.relNs));
+          }
+          if (v.env === ENV_ATTACK) {
+            var g = v.gain, ng = (Math.imul(g, d.kAttack) >>> 0) >>> 16;
+            if (ng <= g) ng = g + 1;
+            v.gain = ng > v.peak ? v.peak : ng;
+            if (sampleCnt >= v.attackEnd) { v.env = cfg.decayEnable ? ENV_DECAY : ENV_SUSTAIN; }
+          } else if (v.env === ENV_DECAY) {
+            v.gain = (Math.imul(v.gain, d.kDecay) >>> 0) >>> 16;
+            if (v.gain <= v.susTarget) {
+              if (cfg.sustainEnable) { v.gain = v.susTarget; v.env = ENV_SUSTAIN; }
+              else { v.active = 0; v.env = ENV_OFF; continue; }
+            }
+          } else if (v.env === ENV_RELEASE) {
+            if (v.gain <= v.relStep) { v.active = 0; v.env = ENV_OFF; continue; }
+            v.gain -= v.relStep;
+          }
+          var gain = v.gain;
+          if (cfg.quantize4bit && v.invStep > 0) {
+            gain = Math.floor(gain * v.invStep + 0.5) * v.qStep;
+          }
+          var prev = v.phase;
+          v.phase = (v.phase + v.inc) >>> 0;
+          var w;
+          if (v.noise) {
+            if (v.phase < prev) {                     /* 相位溢出 = LFSR 时钟沿 */
+              var bit = ((g_lfsr ^ (g_lfsr >> 1)) & 1);
+              g_lfsr = (g_lfsr >> 1) | (bit << 14);
+            }
+            w = (g_lfsr & 1) ? gain : -gain;
+          } else if (cfg.waveform === WAVE_SQUARE) {
+            if (cfg.dutyIndex === 2) { w = (v.phase >>> 31) ? -gain : gain; }
+            else if (v.phase < DUTY_Q32[cfg.dutyIndex]) { w = Math.imul(gain, DUTY_HI_Q16[cfg.dutyIndex]) >> 16; }
+            else { w = -(Math.imul(gain, DUTY_LO_Q16[cfg.dutyIndex]) >> 16); }
+          } else if (cfg.waveform === WAVE_SINE) {
+            w = (Math.imul(gain, d.sineLut[v.phase >>> 24]) >> 7);
+          } else if (cfg.waveform === WAVE_TRIANGLE) {
+            if (cfg.steppedTriangle) { w = (Math.imul(gain, TRI_STEP_Q16[(v.phase >>> 27) & 31]) >> 16); }
+            else {
+              var u = v.phase >>> 16;
+              var tri = u < 32768 ? (u * 4 - 65536) : ((65535 - u) * 4 - 65536);
+              w = (Math.imul(gain, tri) >> 16);
+            }
+          } else {
+            var saw = ((v.phase >>> 15) & 0x1FFFF) - 65536;
+            w = (Math.imul(gain, saw) >> 16);
+          }
+          acc += w;
+          live++;
+        }
+        if (live > stats.maxVoices) stats.maxVoices = live;
+
+        /* 3. PWM 输出（一阶噪声整形） */
+        var prod = (Math.imul(acc, ARR) + ccrErr) | 0;
+        var raw = prod >> 17;
+        ccrErr = (prod - (raw << 17)) | 0;
+        var ccr = half + raw;
+        if (ccr < 0 || ccr > ARR) {
+          stats.clipped++;
+          if (stats.firstClipAt < 0) stats.firstClipAt = sampleCnt;
+          ccr = ccr < 0 ? 0 : ARR;
+        }
+        var smp = (ccr - half) / half;
+        var a = smp < 0 ? -smp : smp;
+        if (a > stats.peak) stats.peak = a;
+        stats.sumSq += smp * smp;
+
+        out[writePos++] = smp;
+        written++;
+        sampleCnt++;
+        if (writePos >= cap) { truncated = userCap; finished = true; break; }
+        /* 4. 自然结束 */
+        if (noteIdx >= count) {
+          var any = 0;
+          for (k = 0; k < nv; k++) { if (voices[k].active) { any = 1; break; } }
+          if (!any) { finished = true; break; }
+        }
+      }
+      return written;
+    }
+
+    return {
+      step: step,
+      stats: stats,
+      derive: d,
+      get finished() { return finished; },
+      get truncated() { return truncated; },
+      get written() { return writePos; },
+      get playMs() { return sampleCnt * 1000 / sr; },
+      samples: function () { return out ? out.subarray(0, writePos) : new Float32Array(0); }
+    };
+  }
+
+  /* 同步渲染（测试 / 短预览用） */
+  function renderSync(quantizedNotes, tickUs, cfg, maxSamples) {
+    var r = createRenderer(quantizedNotes, tickUs, cfg, maxSamples);
+    while (!r.finished) { r.step(65536); }
+    return { samples: r.samples(), stats: r.stats, truncated: r.truncated, playMs: r.playMs };
+  }
+
+  /* ---------- WAV（16bit 单声道） ---------- */
+  function encodeWav(samples, sampleRate) {
+    var n = samples.length;
+    var buf = new ArrayBuffer(44 + n * 2);
+    var dv = new DataView(buf);
+    function str(off, s) { for (var i = 0; i < s.length; i++) { dv.setUint8(off + i, s.charCodeAt(i)); } }
+    str(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); str(8, 'WAVE');
+    str(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+    dv.setUint32(24, sampleRate, true); dv.setUint32(28, sampleRate * 2, true);
+    dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+    str(36, 'data'); dv.setUint32(40, n * 2, true);
+    for (var i = 0; i < n; i++) {
+      var v = samples[i];
+      if (v > 1) v = 1; else if (v < -1) v = -1;
+      dv.setInt16(44 + i * 2, Math.round(v * 32767), true);
+    }
+    return buf;
+  }
+
+  return {
+    NL: NL,
+    TIM3_CLK: TIM3_CLK,
+    WAVE_SINE: WAVE_SINE, WAVE_TRIANGLE: WAVE_TRIANGLE, WAVE_SQUARE: WAVE_SQUARE, WAVE_SAWTOOTH: WAVE_SAWTOOTH,
+    WAVE_MACRO: WAVE_MACRO, DUTY_NAME: DUTY_NAME,
+    TICK_US_DEFAULT: TICK_US_DEFAULT,
+    defaultConfig: defaultConfig,
+    parseMidi: parseMidi,
+    buildGroups: buildGroups,
+    channelMask: channelMask,
+    quantizeNotes: quantizeNotes,
+    pickTickUs: pickTickUs,
+    songTotalMs: songTotalMs,
+    generateScoreHeader: generateScoreHeader,
+    deriveConstants: deriveConstants,
+    peakGainQ16: peakGainQ16,
+    envelopeCurve: envelopeCurve,
+    createRenderer: createRenderer,
+    renderSync: renderSync,
+    encodeWav: encodeWav,
+    stripExt: stripExt
+  };
+});
+/* ==== CHIPTUNE_CORE_END ==== */
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var C = window.ChiptuneCore;
+  var NL = C.NL;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var cfg = C.defaultConfig();
+  var cfgBaseFile = 'Constant_Moderato';
+  var parsed = null;
+  var built = null;          /* {groups, notes} */
+  var quant = null;          /* {text, quantized, tickUs, totalMs, bytes} */
+  var rendered = null;       /* {samples, stats, truncated} */
+  var audioCtx = null, srcNode = null, gainNode = null, audioBuf = null;
+  var playStartCtx = 0, playOffset = 0, playing = false, rafId = 0;
+  var renderToken = 0, autoTimer = 0;
+  var state = { tone: {}, trackCfg: [] };
+
+  /* ---------- 日志 ---------- */
+  function log(msg, cls) {
+    var el = document.createElement('div');
+    if (cls) el.className = cls;
+    el.textContent = msg;
+    $('log').insertBefore(el, $('log').firstChild);
+    while ($('log').childNodes.length > 60) { $('log').removeChild($('log').lastChild); }
+  }
+  function fmtTime(sec) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function download(name, text, mime) {
+    var blob = (text instanceof ArrayBuffer) ? new Blob([text], { type: mime || 'application/octet-stream' })
+                                            : new Blob([text], { type: mime || 'text/plain' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  /* ---------- 参数面板（声明式） ---------- */
+  var PARAMS = [
+    { g: '引擎', key: 'sampleRate', t: 'sel', label: '采样率', opts: [[16000, '16000 Hz'], [22050, '22050 Hz'], [32000, '32000 Hz'], [44100, '44100 Hz']], fmt: function (v) { return v / 1000 + ' kHz'; }, hint: 'PWM 载波频率 = 采样率；ARR = 72MHz/SR-1' },
+    { g: '引擎', key: 'maxPolyphony', t: 'rng', label: '复音数', min: 1, max: 16, step: 1, fmt: function (v) { return v + ' 音'; } },
+    { g: '引擎', key: 'masterVolumeQ8', t: 'rng', label: '主音量', min: 0, max: 256, step: 1, fmt: function (v) { return v + ' (' + (v / 256 * 100).toFixed(0) + '%)'; } },
+    { g: '波形', key: 'waveform', t: 'sel', label: '波形', opts: [[0, '正弦 sine'], [1, '三角 triangle'], [2, '方波 square'], [3, '锯齿 sawtooth']], fmt: function (v) { return C.WAVE_MACRO[v].replace('WAVE_', ''); } },
+    { g: '波形', key: 'dutyIndex', t: 'sel', label: '脉冲占空比', x: 1, opts: [[0, '12.5%'], [1, '25%'], [2, '50%'], [3, '75%']], fmt: function (v) { return C.DUTY_NAME[v]; }, hint: '仅方波生效；固件需支持（当前 Music.c 固定 50%）' },
+    { g: '波形', key: 'steppedTriangle', t: 'chk', label: '阶梯三角', x: 1, hint: 'NES 三角通道的 32 级量化，低音更有 FC 味' },
+    { g: '波形', key: 'quantize4bit', t: 'chk', label: '4bit 音量', x: 1, hint: '音量量化到 16 级（NES/GB 音量寄存器位宽），颗粒感来源' },
+    { g: '波形', key: 'noiseClockMul', t: 'rng', x: 1, label: '噪声时钟', min: 1, max: 32, step: 1, fmt: function (v) { return 'x' + v; }, hint: '音源选为「噪声」的音轨：LFSR 时钟 = 音高 x 该倍率' },
+    { g: '包络', key: 'attackMs', t: 'rng', label: '起音', min: 0, max: 60, step: 1, fmt: function (v) { return v + ' ms'; } },
+    { g: '包络', key: 'decayEnable', t: 'chk', label: '衰减开关' },
+    { g: '包络', key: 'decayMs', t: 'rng', label: '衰减时间', min: 50, max: 4000, step: 10, fmt: function (v) { return v + ' ms'; } },
+    { g: '包络', key: 'sustainEnable', t: 'chk', label: '延音开关' },
+    { g: '包络', key: 'sustainGainQ8', t: 'rng', label: '延音电平', min: 0, max: 256, step: 1, fmt: function (v) { return v + ' (' + (v / 256).toFixed(2) + ')'; }, hint: 'AudioLab 原值 0.55 -> 140' },
+    { g: '包络', key: 'releaseFollowDecay', t: 'chk', label: '释放=衰减', x: 1, hint: '固件行为：音符结束后的淡出时长等于衰减时间（关衰减时 50ms）' },
+    { g: '包络', key: 'releaseMs', t: 'rng', x: 1, label: '释放时长', min: 5, max: 600, step: 5, fmt: function (v) { return v + ' ms'; }, hint: '仅在「释放=衰减」关闭时生效' },
+    { g: '音符时长', key: 'durationFromMidi', t: 'chk', label: '遵循 MIDI', hint: '关闭时所有音符统一为下面的固定时长' },
+    { g: '音符时长', key: 'noteDurationMs', t: 'rng', label: '固定时长', min: 40, max: 2000, step: 10, fmt: function (v) { return v + ' ms'; } },
+    { g: '解析', key: 'splitByChannel', t: 'chk', label: '按通道分轨', hint: '格式 0 的 MIDI 只有一个轨块，勾选后按通道拆成多条轨' },
+    { g: '解析', key: 'dropPercussion', t: 'chk', label: '丢弃打击乐', hint: '忽略通道 10（0 基索引 9）的音符，蜂鸣器放不好鼓' }
+  ];
+  var GROUPS = ['引擎', '波形', '包络', '音符时长', '解析'];
+  var ctlEls = {};
+
+  function buildPanel() {
+    var host = $('panel');
+    host.innerHTML = '';
+    GROUPS.forEach(function (gname, gi) {
+      if (gi > 0) { var hr = document.createElement('div'); hr.style.cssText = 'height:1px;background:rgba(255,255,255,.07);margin:12px 0'; host.appendChild(hr); }
+      var h = document.createElement('div');
+      h.style.cssText = 'font-size:11.5px;color:#8b93a8;margin-bottom:8px;letter-spacing:.06em';
+      h.textContent = gname;
+      host.appendChild(h);
+      PARAMS.filter(function (p) { return p.g === gname; }).forEach(function (p) { host.appendChild(buildControl(p)); });
+    });
+    syncPanel();
+  }
+  function buildControl(p) {
+    var el;
+    if (p.t === 'chk') {
+      el = document.createElement('label');
+      el.className = 'sw';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = !!cfg[p.key];
+      cb.addEventListener('change', function () { cfg[p.key] = cb.checked; onParamChange(); });
+      el.appendChild(cb);
+      var sp = document.createElement('span');
+      sp.textContent = p.label + (p.x ? ' （实验）' : '');
+      el.appendChild(sp);
+      ctlEls[p.key] = { type: 'chk', el: cb, wrap: el };
+      var box = document.createElement('div');
+      box.appendChild(el);
+      if (p.hint) { var h1 = document.createElement('div'); h1.className = 'hint'; h1.textContent = p.hint; box.appendChild(h1); }
+      return box;
+    }
+    if (p.t === 'sel') {
+      el = document.createElement('div');
+      el.className = 'row';
+      var lb = document.createElement('label'); lb.textContent = p.label + (p.x ? ' ⚗' : '');
+      var se = document.createElement('select');
+      p.opts.forEach(function (o) {
+        var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; se.appendChild(op);
+      });
+      se.value = cfg[p.key];
+      se.addEventListener('change', function () { cfg[p.key] = parseFloat(se.value); onParamChange(); });
+      var vl = document.createElement('span'); vl.className = 'val';
+      el.appendChild(lb); el.appendChild(se); el.appendChild(vl);
+      ctlEls[p.key] = { type: 'sel', el: se, val: vl, p: p };
+    } else {
+      el = document.createElement('div');
+      el.className = 'row';
+      var lb2 = document.createElement('label'); lb2.textContent = p.label + (p.x ? ' ⚗' : '');
+      var rg = document.createElement('input');
+      rg.type = 'range'; rg.min = p.min; rg.max = p.max; rg.step = p.step; rg.value = cfg[p.key];
+      rg.addEventListener('input', function () { cfg[p.key] = parseFloat(rg.value); onParamChange(); });
+      var vl2 = document.createElement('span'); vl2.className = 'val';
+      el.appendChild(lb2); el.appendChild(rg); el.appendChild(vl2);
+      ctlEls[p.key] = { type: 'rng', el: rg, val: vl2, p: p };
+    }
+    if (p.hint) {
+      var wrap = document.createElement('div');
+      wrap.appendChild(el);
+      var h2 = document.createElement('div'); h2.className = 'hint'; h2.textContent = p.hint;
+      wrap.appendChild(h2);
+      return wrap;
+    }
+    return el;
+  }
+  function syncPanel() {
+    PARAMS.forEach(function (p) {
+      var c = ctlEls[p.key];
+      if (!c) return;
+      if (c.type === 'chk') { c.el.checked = !!cfg[p.key]; }
+      else if (c.type === 'sel') { c.el.value = cfg[p.key]; c.val.textContent = p.fmt(cfg[p.key]); }
+      else { c.el.value = cfg[p.key]; c.val.textContent = p.fmt(cfg[p.key]); }
+      if (p.key === 'dutyIndex') { c.el.disabled = cfg.waveform !== C.WAVE_SQUARE; }
+      if (p.key === 'noiseClockMul') { c.el.disabled = !hasNoiseTrack(); }
+      if (p.key === 'decayMs') { c.el.disabled = !cfg.decayEnable; }
+      if (p.key === 'sustainGainQ8') { c.el.disabled = !cfg.sustainEnable; }
+      if (p.key === 'releaseMs') { c.el.disabled = cfg.releaseFollowDecay; }
+      if (p.key === 'noteDurationMs') { c.el.disabled = cfg.durationFromMidi; }
+    });
+  }
+  function hasNoiseTrack() {
+    for (var i = 0; i < state.trackCfg.length; i++) { if (state.trackCfg[i] && state.trackCfg[i].noise) return true; }
+    return false;
+  }
+
+  /* ---------- 音轨面板 ---------- */
+  function buildTracks() {
+    var host = $('tracks');
+    host.innerHTML = '';
+    state.trackCfg = [];
+    if (!built || !built.groups.length) {
+      host.innerHTML = '<div class="hint" style="margin:0">加载 MIDI 后显示音轨列表</div>';
+      return;
+    }
+    built.groups.forEach(function (g, i) {
+      var tc = { enable: true, vol: i === 0 ? 220 : 256, noise: false, export: true };
+      state.trackCfg.push(tc);
+      var row = document.createElement('div');
+      row.className = 'trow';
+
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = true; cb.title = '播放该轨';
+      cb.addEventListener('change', function () { tc.enable = cb.checked; onParamChange(); });
+      row.appendChild(cb);
+
+      var nm = document.createElement('div');
+      nm.className = 'tname';
+      var chs = C.channelMask(g);
+      nm.innerHTML = '';
+      nm.appendChild(document.createTextNode('轨 ' + i + ' (MIDI tr' + g.track + ')'));
+      var em = document.createElement('em');
+      em.textContent = g.notes.length + ' 音 · ch' + chs.map(function (c) { return c + 1; }).join(',');
+      nm.appendChild(em);
+      row.appendChild(nm);
+
+      var rg = document.createElement('input');
+      rg.type = 'range'; rg.min = 0; rg.max = 256; rg.step = 1; rg.value = tc.vol;
+      rg.title = '轨音量（Q8）';
+      rg.addEventListener('input', function () { tc.vol = parseFloat(rg.value); onParamChange(); });
+      row.appendChild(rg);
+
+      var se = document.createElement('select');
+      [['tone', '音调'], ['noise', '噪声']].forEach(function (o) {
+        var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; se.appendChild(op);
+      });
+      se.title = '音源（噪声为实验特性）';
+      se.addEventListener('change', function () { tc.noise = se.value === 'noise'; onParamChange(); });
+      row.appendChild(se);
+
+      var wrap = document.createElement('label');
+      wrap.className = 'sw';
+      wrap.title = '是否写入乐谱';
+      var eb = document.createElement('input');
+      eb.type = 'checkbox'; eb.checked = true;
+      eb.addEventListener('change', function () { tc.export = eb.checked; onParamChange(); });
+      wrap.appendChild(eb);
+      var sp = document.createElement('span');
+      sp.textContent = '导出';
+      sp.style.fontSize = '11px';
+      wrap.appendChild(sp);
+      row.appendChild(wrap);
+
+      host.appendChild(row);
+    });
+  }
+
+  /* ---------- 参数 -> 配置数组 -> 重渲染 ---------- */
+  function applyTrackArrays() {
+    var tl = [], tv = [], tn = [];
+    for (var i = 0; i < state.trackCfg.length; i++) {
+      var t = state.trackCfg[i];
+      tl.push(t.enable ? 1 : 0);
+      tv.push(t.vol);
+      tn.push(t.noise ? 1 : 0);
+    }
+    cfg.trackEnable = tl.length ? tl : [1];
+    cfg.trackVolumeQ8 = tv.length ? tv : [256];
+    cfg.trackNoise = tn.length ? tn : [0];
+  }
+
+  function onParamChange() {
+    syncPanel();
+    applyTrackArrays();
+    updateConfigPreview();
+    updateEnvelope();
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(function () { startRender(); }, 180);
+  }
+
+  /* ---------- MIDI 加载 ---------- */
+  function loadBuffer(buf, fname) {
+    try {
+      parsed = C.parseMidi(buf);
+    } catch (err) {
+      log('解析失败：' + err.message, 'e');
+      $('loadInfo').textContent = '解析失败';
+      return;
+    }
+    cfgBaseFile = C.stripExt(fname).replace(/[^A-Za-z0-9_]/g, '_');
+    var scoreName = C.stripExt(fname);
+    built = C.buildGroups(parsed, cfg);
+    buildTracks();
+    applyTrackArrays();
+    $('loadInfo').textContent = fname + ' · ' + built.notes.length + ' 音符 · ' + parsed.trackCount + ' 轨块';
+    var chans = {};
+    parsed.rawNotes.forEach(function (n) { chans[n.channel + 1] = 1; });
+    var chList = Object.keys(chans).map(Number).sort(function (a, b) { return a - b; });
+    $('fileInfo').innerHTML =
+      '文件：<b>' + scoreName + '</b>（格式 ' + parsed.format + '，' + parsed.trackCount + ' 轨块，' + parsed.division + ' tick/四分音符，' + parsed.tempoCount + ' 个 tempo 段）<br>' +
+      '音符：<b>' + built.notes.length + '</b> 个 · 时长 <b>' + fmtTime(parsed.duration) + '</b> · 分组 <b>' + built.groups.length + '</b> 轨 · 通道 {' + chList.join(',') + '}' +
+      (parsed.format === 0 ? '<br><span style="color:#fbbf24">格式 0 文件：所有通道在同一个轨块里，建议勾选「按通道分轨」</span>' : '');
+    log('已加载 ' + fname + '：' + built.notes.length + ' 音符 / ' + built.groups.length + ' 组', 'g');
+    updateConfigPreview();
+    startRender();
+  }
+
+  /* ---------- 渲染 ---------- */
+  function previewSamples() {
+    var sec = parseFloat($('previewLen').value) || 30;
+    if (sec <= 0) {
+      var est = (C.songTotalMs(built.notes) / 1000 + cfg.decayMs / 1000 + 1.5);
+      return Math.ceil(est * cfg.sampleRate);
+    }
+    return Math.ceil(sec * cfg.sampleRate);
+  }
+
+  function startRender() {
+    if (!built || !built.notes.length) return;
+    if (cfg.durationFromMidi && quant == null) { /* noop */ }
+    applyTrackArrays();
+    var tickUs = C.pickTickUs(built.notes);
+    var exported = [];
+    var keep = [];
+    for (var gi = 0; gi < built.groups.length; gi++) { keep.push(state.trackCfg[gi] ? state.trackCfg[gi].export !== false : true); }
+    for (var i = 0; i < built.notes.length; i++) {
+      if (keep[built.notes[i].track]) exported.push(built.notes[i]);
+    }
+    if (!exported.length) exported = built.notes.slice();
+    quant = C.generateScoreHeader(cfgBaseFile, exported, built.groups.length, { tickUs: tickUs });
+
+    renderToken++;
+    var token = renderToken;
+    stopPlayback();
+    var s = quant.quantized.slice().sort(function (a, b) { return a.time - b.time; });
+    var r = C.createRenderer(s, quant.tickUs, cfg, previewSamples());
+    var total = previewSamples();
+    var t0 = performance.now();
+    $('rstate').textContent = '渲染中…';
+
+    function chunk() {
+      if (token !== renderToken) return;
+      var n = 0;
+      while (n < 262144 && !r.finished) { n += r.step(65536); }
+      var pct = total ? Math.min(100, r.written / total * 100) : 0;
+      $('pfill').style.width = pct.toFixed(1) + '%';
+      if (!r.finished) { setTimeout(chunk, 0); return; }
+      var ms = performance.now() - t0;
+      var smp = r.samples();
+      rendered = { samples: smp, stats: r.stats, truncated: r.truncated, playMs: r.playMs, derive: r.derive, ms: ms };
+      buildAudioBuffer(smp);
+      $('pfill').style.width = '0%';
+      $('rstate').textContent = '就绪（渲染 ' + ms.toFixed(0) + ' ms）';
+      $('totTime').textContent = fmtTime(smp.length / cfg.sampleRate);
+      $('play').disabled = smp.length === 0;
+      $('stop').disabled = true;
+      $('dlWav').disabled = smp.length === 0;
+      $('dlScore').disabled = false;
+      updateMetrics();
+      updateConfigPreview();
+      drawWave();
+      log('渲染完成：' + smp.length + ' 采样 / ' + (smp.length / cfg.sampleRate).toFixed(1) + ' s' +
+          (r.truncated ? '（预览截断）' : '（完整）') + ' · 用时 ' + ms.toFixed(0) + ' ms');
+    }
+    setTimeout(chunk, 0);
+  }
+
+  function buildAudioBuffer(smp) {
+    ensureCtx();
+    audioBuf = audioCtx.createBuffer(1, smp.length, cfg.sampleRate);
+    var ch = audioBuf.getChannelData(0);
+    for (var i = 0; i < smp.length; i++) { ch[i] = smp[i]; }
+  }
+
+  /* ---------- 播放 ---------- */
+  function ensureCtx() {
+    if (!audioCtx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = parseFloat($('listenVol').value) / 100;
+      gainNode.connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+  }
+  function stopPlayback() {
+    if (srcNode) { try { srcNode.onended = null; srcNode.stop(); } catch (e) {} srcNode = null; }
+    playing = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    $('play').textContent = '▶ 播放';
+  }
+  function play(offset) {
+    if (!audioBuf) return;
+    ensureCtx();
+    stopPlayback();
+    offset = Math.max(0, Math.min(offset, audioBuf.duration - 0.01));
+    srcNode = audioCtx.createBufferSource();
+    srcNode.buffer = audioBuf;
+    srcNode.loop = $('loop').checked;
+    srcNode.connect(gainNode);
+    srcNode.onended = function () { if (!srcNode || !srcNode.loop) { stopPlayback(); $('pfill').style.width = '0%'; $('curTime').textContent = '0:00'; } };
+    srcNode.start(0, offset);
+    playStartCtx = audioCtx.currentTime;
+    playOffset = offset;
+    playing = true;
+    $('play').textContent = '⏸ 暂停';
+    $('stop').disabled = false;
+    tickProgress();
+  }
+  function currentOffset() {
+    if (!playing || !audioCtx) return playOffset;
+    var d = audioBuf ? audioBuf.duration : 0;
+    var o = playOffset + (audioCtx.currentTime - playStartCtx);
+    return srcNode && srcNode.loop && d > 0 ? o % d : o;
+  }
+  function tickProgress() {
+    if (!playing) return;
+    var o = currentOffset();
+    var d = audioBuf ? audioBuf.duration : 0;
+    $('pfill').style.width = (d ? Math.min(100, o / d * 100) : 0).toFixed(2) + '%';
+    $('curTime').textContent = fmtTime(o);
+    drawPlayhead(o / d);
+    rafId = requestAnimationFrame(tickProgress);
+  }
+
+  /* ---------- 画图 ---------- */
+  var waveCv, waveCtx, waveOff, envCv, envCtx;
+  function fitCanvas(cv) {
+    var dpr = window.devicePixelRatio || 1;
+    var w = cv.clientWidth || 600;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(cv.getAttribute('height') * dpr)) {
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(parseFloat(cv.getAttribute('height')) * dpr);
+    }
+    return dpr;
+  }
+  function drawWave() {
+    var dpr = fitCanvas(waveCv);
+    var w = waveCv.width, h = waveCv.height;
+    waveCtx.setTransform(1, 0, 0, 1, 0, 0);
+    waveCtx.fillStyle = '#0d1119';
+    waveCtx.fillRect(0, 0, w, h);
+    waveCtx.strokeStyle = 'rgba(255,255,255,.07)';
+    waveCtx.lineWidth = 1;
+    waveCtx.beginPath();
+    waveCtx.moveTo(0, h / 2); waveCtx.lineTo(w, h / 2);
+    waveCtx.moveTo(0, h * 0.25); waveCtx.lineTo(w, h * 0.25);
+    waveCtx.moveTo(0, h * 0.75); waveCtx.lineTo(w, h * 0.75);
+    waveCtx.stroke();
+
+    waveOff = document.createElement('canvas');
+    waveOff.width = w; waveOff.height = h;
+    var oc = waveOff.getContext('2d');
+    if (rendered && rendered.samples.length) {
+      var s = rendered.samples, n = s.length;
+      oc.strokeStyle = '#5eead4';
+      oc.lineWidth = Math.max(1, dpr);
+      oc.beginPath();
+      for (var x = 0; x < w; x++) {
+        var i0 = Math.floor(x * n / w), i1 = Math.max(i0 + 1, Math.floor((x + 1) * n / w));
+        var mn = 1, mx = -1;
+        for (var i = i0; i < i1 && i < n; i++) { var v = s[i]; if (v < mn) mn = v; if (v > mx) mx = v; }
+        oc.moveTo(x + 0.5, (1 - mx) * h / 2);
+        oc.lineTo(x + 0.5, (1 - mn) * h / 2);
+      }
+      oc.stroke();
+    }
+    waveCtx.setTransform(1, 0, 0, 1, 0, 0);
+    waveCtx.drawImage(waveOff, 0, 0);
+    waveCtx.fillStyle = 'rgba(139,147,168,.85)';
+    waveCtx.font = (11 * dpr) + 'px ui-monospace,monospace';
+    waveCtx.fillText('+1', 6 * dpr, 13 * dpr);
+    waveCtx.fillText('-1', 6 * dpr, h - 6 * dpr);
+  }
+  function drawPlayhead(ratio) {
+    if (!waveOff) return;
+    var w = waveCv.width, h = waveCv.height;
+    waveCtx.setTransform(1, 0, 0, 1, 0, 0);
+    waveCtx.drawImage(waveOff, 0, 0);
+    if (ratio >= 0 && ratio <= 1) {
+      waveCtx.strokeStyle = 'rgba(167,139,250,.9)';
+      waveCtx.lineWidth = 2;
+      waveCtx.beginPath();
+      waveCtx.moveTo(ratio * w, 0); waveCtx.lineTo(ratio * w, h);
+      waveCtx.stroke();
+    }
+  }
+  function updateEnvelope() {
+    var dpr = fitCanvas(envCv);
+    var w = envCv.width, h = envCv.height;
+    envCtx.setTransform(1, 0, 0, 1, 0, 0);
+    envCtx.fillStyle = '#0d1119';
+    envCtx.fillRect(0, 0, w, h);
+    var tickUs = built ? C.pickTickUs(built.notes) : 5000;
+    var durMs = cfg.durationFromMidi ? 400 : cfg.noteDurationMs;
+    var maxVol = 256;
+    for (var i = 0; i < state.trackCfg.length; i++) { maxVol = Math.max(maxVol, state.trackCfg[i].vol); }
+    var env = C.envelopeCurve(cfg, tickUs, durMs, Math.min(256, maxVol));
+    var curve = env.curve;
+    var span = (curve.length / cfg.sampleRate) * 1000;
+    envCtx.strokeStyle = 'rgba(255,255,255,.07)';
+    envCtx.beginPath();
+    for (var g = 1; g < 4; g++) { envCtx.moveTo(0, h * g / 4); envCtx.lineTo(w, h * g / 4); }
+    envCtx.stroke();
+    envCtx.strokeStyle = '#a78bfa';
+    envCtx.lineWidth = Math.max(1, dpr);
+    envCtx.beginPath();
+    var peakShow = Math.max(0.02, env.peak);
+    for (var x = 0; x < w; x++) {
+      var idx = Math.floor(x * curve.length / w);
+      var y = h - 6 - (curve[idx] / peakShow) * (h - 12);
+      if (x === 0) envCtx.moveTo(x, y); else envCtx.lineTo(x, y);
+    }
+    envCtx.stroke();
+    envCtx.fillStyle = 'rgba(139,147,168,.85)';
+    envCtx.font = (11 * dpr) + 'px ui-monospace,monospace';
+    envCtx.fillText('0', 5 * dpr, h - 5 * dpr);
+    envCtx.fillText((peakShow * 100).toFixed(1) + '% 峰值', 5 * dpr, 13 * dpr);
+    envCtx.fillText(span.toFixed(0) + ' ms', w - 58 * dpr, h - 5 * dpr);
+    var sr = cfg.sampleRate;
+    var msof = function (n) { return n / sr * 1000; };
+    var aMe = msof(env.marks.attackEnd + 1);
+    var dMe = env.marks.decayEnd > 0 ? msof(env.marks.decayEnd - env.marks.attackEnd) : -1;
+    var rMe = env.marks.releaseEnd > 0 ? msof(env.marks.releaseEnd - env.marks.noteEnd) : -1;
+    var nomRel = env.releaseNs / sr * 1000;
+    var txt = '峰值 ' + (env.peak * 100).toFixed(2) + '%（velocity=127 单音） · 起音 设定 ' + cfg.attackMs +
+      ' / 实测 ' + aMe.toFixed(0) + ' ms · 衰减 ' + (cfg.decayEnable ? '设定 ' + cfg.decayMs + ' / 实测 ' + (dMe > 0 ? dMe.toFixed(0) : '—') + ' ms' : '关') +
+      ' · 延音 ' + (cfg.sustainEnable ? (cfg.sustainGainQ8 / 256).toFixed(2) : '关') +
+      ' · 释放 设定 ' + nomRel.toFixed(0) + ' / 实测 ' + (rMe > 0 ? rMe.toFixed(0) : '—') + ' ms · 音符 ' + durMs + ' ms';
+    var warn = [];
+    if (dMe > 20 && cfg.decayMs > 0 && Math.abs(dMe - cfg.decayMs) / cfg.decayMs > 0.12) {
+      warn.push('衰减实测 ' + dMe.toFixed(0) + ' ms，比设定的 ' + cfg.decayMs + ' ms 快 ' + ((1 - dMe / cfg.decayMs) * 100).toFixed(0) +
+        '%：Q16.16 每样本乘数 k_decay=' + env.kDecay + ' 只比 65536 小 ' + (65536 - env.kDecay) +
+        ' 个 LSB，而增益每样本本该只降 0.2~0.5 个 LSB，整数截断把它压成「每样本 -1」的线性斜坡，衰减时长被锁死在约 ' +
+        dMe.toFixed(0) + ' ms（改 MUSIC_DECAY_TIME_MS 无效）。固件需改用更高精度系数才能真正生效。');
+    }
+    if (rMe > 0 && Math.abs(rMe - nomRel) / nomRel > 0.12) {
+      warn.push('释放实测 ' + rMe.toFixed(0) + ' ms ≠ 设定 ' + nomRel.toFixed(0) +
+        ' ms：rel_step = gain/rel_ns 是整数除法，增益（约 ' + Math.round(env.peak * 65536 * 0.55) + '）小于 rel_ns（' + env.releaseNs + '）时步进被抬到 1，淡出时长退化成「增益个样本」。');
+    }
+    if (cfg.decayEnable && cfg.sustainEnable && dMe <= 20 && dMe >= 0) {
+      warn.push('衰减段没有实际衰减：延音电平 ' + (cfg.sustainGainQ8 / 256).toFixed(2) +
+        ' 已高于起音结束时到达的电平（起音按 PEAK_REF=0.9*0.25 定速，6ms 只走到约 0.92*peak），所以 DECAY 分支一进来就直接跳到延音电平。把延音电平调到 0.55~0.85 才能听到指数衰减。');
+    }
+    $('envInfo').textContent = txt + (warn.length ? NL + '⚠ ' + warn.join(NL + '⚠ ') : '');
+    $('envInfo').style.color = warn.length ? '#fbbf24' : '';
+  }
+
+  /* ---------- 指标 ---------- */
+  function updateMetrics() {
+    var host = $('metrics');
+    host.innerHTML = '';
+    if (!rendered) { return; }
+    var st = rendered.stats;
+    var n = rendered.samples.length;
+    var rms = n ? Math.sqrt(st.sumSq / n) : 0;
+    var clipPct = n ? st.clipped / n * 100 : 0;
+    var sec = rendered.playMs / 1000;
+    var voiceCap = cfg.maxPolyphony;
+    var items = [
+      { k: '峰值电平', v: (st.peak * 100).toFixed(1) + '%', c: st.peak > 0.999 ? 'bad' : (st.peak > 0.9 ? 'warn' : 'ok') },
+      { k: '削顶采样', v: st.clipped + (n ? ' (' + clipPct.toFixed(2) + '%)' : ''), c: st.clipped > 0 ? 'bad' : 'ok' },
+      { k: 'RMS 电平', v: (rms * 100).toFixed(1) + '%', c: rms > 0.35 ? 'warn' : 'ok' },
+      { k: '同时发声峰值', v: st.maxVoices + ' / ' + voiceCap, c: st.maxVoices >= voiceCap ? 'bad' : 'ok' },
+      { k: '声部抢占', v: String(st.steals), c: st.steals > 0 ? 'warn' : 'ok' },
+      { k: '乐谱体积', v: (quant ? (quant.bytes / 1024).toFixed(1) : '0') + ' KB', c: 'ok' },
+      { k: '真实时长', v: fmtTime(sec), c: 'ok' }
+    ];
+    items.forEach(function (it) {
+      var d = document.createElement('div');
+      d.className = 'metric';
+      var kk = document.createElement('div'); kk.className = 'k'; kk.textContent = it.k;
+      var vv = document.createElement('div'); vv.className = 'v ' + it.c; vv.textContent = it.v;
+      d.appendChild(kk); d.appendChild(vv);
+      host.appendChild(d);
+    });
+    var adv = [];
+    if (st.clipped > 0) {
+      var sug = Math.max(1, Math.floor(cfg.masterVolumeQ8 / Math.max(0.0001, st.peak) * 0.98));
+      if (sug > 256) sug = 256;
+      adv.push('检测到削顶：把主音量降到 <b>' + sug + '</b> 左右，或调低各轨音量来消除。');
+    }
+    if (st.maxVoices >= voiceCap) adv.push('复音数已打满（' + voiceCap + '）：会窃取最早的音，建议把 MUSIC_MAX_POLYPHONY 提到 <b>' + Math.min(16, st.maxVoices + 2) + '</b>。');
+    if (st.steals > 0) adv.push('发生 <b>' + st.steals + '</b> 次声部抢占，和弦/伴奏会被截断。');
+    if (st.trackMuted > 0) adv.push('有 ' + st.trackMuted + ' 个音符被音轨开关屏蔽（这是你自己关的）。');
+    if (st.outOfRange > 0) adv.push('有 ' + st.outOfRange + ' 个音符的音轨号超出 MUSIC_TRACK_* 数组长度，固件里会被丢弃！');
+    if (st.peak < 0.55 && st.clipped === 0) adv.push('整体偏轻（峰值 ' + (st.peak * 100).toFixed(0) + '%）：可以适当提高主音量让蜂鸣器更响。');
+    if (rendered.truncated) adv.push('当前只是预览片段，点「渲染范围 = 全部」可听完整曲。');
+    $('advice').innerHTML = adv.length ? '诊断建议：<br>· ' + adv.join('<br>· ') : '';
+  }
+
+  /* ---------- config.h 导出 ---------- */
+  function pad(s, n) { s = String(s); while (s.length < n) { s += ' '; } return s; }
+  function u(v) { return v + 'u'; }
+  function buildConfigText() {
+    var L = [];
+    L.push('/* ============================================================');
+    L.push(' * 由 Chiptune Lab 生成（' + new Date().toLocaleString() + '）');
+    if (rendered) {
+      L.push(' * 试听诊断：峰值 ' + (rendered.stats.peak * 100).toFixed(1) + '% · 削顶 ' + rendered.stats.clipped +
+             ' 采样 · 同时发声峰值 ' + rendered.stats.maxVoices + ' · 抢占 ' + rendered.stats.steals);
+    }
+    L.push(' * ============================================================ */');
+    L.push('');
+    L.push('/* ---- 引擎 ---- */');
+    L.push('#define ' + pad('MUSIC_SAMPLE_RATE', 24) + pad(u(cfg.sampleRate), 9) + '/* 采样率（Hz），同时是 PWM 载波频率 */');
+    L.push('#define ' + pad('MUSIC_MAX_POLYPHONY', 24) + pad(u(cfg.maxPolyphony), 9) + '/* 最大同时发声数（复音数） */');
+    L.push('#define ' + pad('MUSIC_MASTER_VOLUME_Q8', 24) + pad(u(cfg.masterVolumeQ8), 9) + '/* 主音量 Q8：' + (cfg.masterVolumeQ8 / 256).toFixed(2) + ' */');
+    L.push('');
+    L.push('/* ---- 波形 ---- */');
+    L.push('#define ' + pad('MUSIC_WAVEFORM', 24) + pad(C.WAVE_MACRO[cfg.waveform], 9) + '/* ' + C.WAVE_MACRO.join(' / ') + ' */');
+    L.push('');
+    L.push('/* ---- 音符时长 ---- */');
+    L.push('#define ' + pad('MUSIC_DURATION_FROM_MIDI', 24) + pad(u(cfg.durationFromMidi ? 1 : 0), 9) + '/* 1=遵循 MIDI 原时长，0=统一固定时长 */');
+    L.push('#define ' + pad('MUSIC_NOTE_DURATION_MS', 24) + pad(u(cfg.noteDurationMs), 9) + '/* 固定时长（毫秒） */');
+    L.push('');
+    L.push('/* ---- 包络 ---- */');
+    L.push('#define ' + pad('MUSIC_ATTACK_MS', 24) + pad(u(cfg.attackMs), 9) + '/* 起音时长（毫秒） */');
+    L.push('#define ' + pad('MUSIC_DECAY_ENABLE', 24) + pad(u(cfg.decayEnable ? 1 : 0), 9) + '/* 衰减开关 */');
+    L.push('#define ' + pad('MUSIC_DECAY_TIME_MS', 24) + pad(u(cfg.decayMs), 9) + '/* 指数衰减时间（毫秒） */');
+    L.push('#define ' + pad('MUSIC_SUSTAIN_ENABLE', 24) + pad(u(cfg.sustainEnable ? 1 : 0), 9) + '/* 延音开关 */');
+    L.push('#define ' + pad('MUSIC_SUSTAIN_GAIN_Q8', 24) + pad(u(cfg.sustainGainQ8), 9) + '/* 延音电平 Q8：' + (cfg.sustainGainQ8 / 256).toFixed(2) + ' */');
+    L.push('');
+    L.push('/* ---- 音轨控制（下标 = 乐谱里的音轨号） ---- */');
+    L.push('#define ' + pad('MUSIC_TRACK_ENABLE', 24) + pad('{' + cfg.trackEnable.join(', ') + '}', 9) + '/* 各轨播放开关 */');
+    L.push('#define ' + pad('MUSIC_TRACK_VOLUME_Q8', 24) + pad('{' + cfg.trackVolumeQ8.join(', ') + '}', 9) + '/* 各轨音量 Q8 */');
+    L.push('');
+    L.push('/* ---- 曲目 ---- */');
+    L.push('#define ' + pad('MUSIC_SCORE_INCLUDE', 24) + pad('"music/' + cfgBaseFile + '.h"', 9) + '/* 换成 User/music/ 下的乐谱 */');
+    var expOn = cfg.quantize4bit || cfg.steppedTriangle || (cfg.dutyIndex !== 2 && cfg.waveform === C.WAVE_SQUARE) ||
+                hasNoiseTrack() || !cfg.releaseFollowDecay;
+    if (expOn) {
+      L.push('');
+      L.push('/* ---- 实验特性：需要 Music.c 支持，当前固件尚未实现 ---- */');
+      if (cfg.dutyIndex !== 2 && cfg.waveform === C.WAVE_SQUARE) L.push('#define ' + pad('MUSIC_PULSE_DUTY', 24) + pad(u(cfg.dutyIndex), 9) + '/* 脉冲占空比 0=12.5% 1=25% 2=50% 3=75% */');
+      if (cfg.steppedTriangle) L.push('#define ' + pad('MUSIC_TRI_STEPPED', 24) + pad(u(1), 9) + '/* 阶梯三角（32 级） */');
+      if (cfg.quantize4bit) L.push('#define ' + pad('MUSIC_QUANT_VOL_4BIT', 24) + pad(u(1), 9) + '/* 4bit 音量量化 */');
+      if (!cfg.releaseFollowDecay) L.push('#define ' + pad('MUSIC_RELEASE_MS', 24) + pad(u(cfg.releaseMs), 9) + '/* 释放时长（不等同衰减时间时） */');
+      if (hasNoiseTrack()) {
+        var tn = [];
+        for (var i = 0; i < state.trackCfg.length; i++) { tn.push(state.trackCfg[i].noise ? 1 : 0); }
+        L.push('#define ' + pad('MUSIC_TRACK_NOISE', 24) + pad('{' + tn.join(', ') + '}', 9) + '/* 音源：0=振荡器 1=LFSR噪声 */');
+        L.push('#define ' + pad('MUSIC_NOISE_CLOCK_MUL', 24) + pad(u(cfg.noiseClockMul), 9) + '/* 噪声 LFSR 时钟倍率 */');
+      }
+    }
+    /* 数值换算说明 */
+    L.push('');
+    L.push('/* 换算：Q8 实际倍数 = 数值/256；末尾 u = unsigned 类型后缀，不改变数值 */');
+    return L.join(NL) + NL;
+  }
+  function updateConfigPreview() {
+    $('cfgOut').textContent = buildConfigText();
+  }
+
+  /* ---------- 事件绑定 ---------- */
+  function addPreviewSelector() {
+    var sep = document.createElement('span'); sep.className = 'pill'; sep.textContent = '渲染范围';
+    var sel = document.createElement('select');
+    sel.id = 'previewLen';
+    sel.style.width = '104px';
+    [[15, '前 15 秒'], [30, '前 30 秒'], [60, '前 60 秒'], [120, '前 2 分钟'], [0, '全部']].forEach(function (o) {
+      var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; sel.appendChild(op);
+    });
+    sel.value = '30';
+    sel.addEventListener('change', function () { startRender(); });
+    var bar = document.querySelector('.toolbar');
+    bar.appendChild(sep); bar.appendChild(sel);
+  }
+
+  function init() {
+    waveCv = $('wave'); waveCtx = waveCv.getContext('2d');
+    envCv = $('env'); envCtx = envCv.getContext('2d');
+    addPreviewSelector();
+    buildPanel();
+    applyTrackArrays();
+    updateEnvelope();
+    drawWave();
+    updateConfigPreview();
+
+    $('drop').addEventListener('click', function () { $('file').click(); });
+    $('file').addEventListener('change', function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      var fr = new FileReader();
+      fr.onload = function () { loadBuffer(fr.result, f.name); };
+      fr.readAsArrayBuffer(f);
+    });
+    ['dragenter', 'dragover'].forEach(function (t) {
+      document.addEventListener(t, function (e) { e.preventDefault(); $('drop').classList.add('over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (t) {
+      document.addEventListener(t, function (e) { e.preventDefault(); $('drop').classList.remove('over'); });
+    });
+    document.addEventListener('drop', function (e) {
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      var fr = new FileReader();
+      fr.onload = function () { loadBuffer(fr.result, f.name); };
+      fr.readAsArrayBuffer(f);
+    });
+
+    $('play').addEventListener('click', function () {
+      if (!audioBuf) return;
+      if (playing) { playOffset = currentOffset(); stopPlayback(); }
+      else { play(playOffset >= audioBuf.duration - 0.02 ? 0 : playOffset); }
+    });
+    $('stop').addEventListener('click', function () {
+      stopPlayback(); playOffset = 0;
+      $('pfill').style.width = '0%'; $('curTime').textContent = '0:00'; drawPlayhead(-1);
+    });
+    $('listenVol').addEventListener('input', function () {
+      if (gainNode) { gainNode.gain.value = parseFloat($('listenVol').value) / 100; }
+    });
+    $('pbar').addEventListener('click', function (e) {
+      if (!audioBuf) return;
+      var r = $('pbar').getBoundingClientRect();
+      var ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+      play(ratio * audioBuf.duration);
+    });
+    $('dlCfg').addEventListener('click', function () { download('config.h', buildConfigText(), 'text/plain'); });
+    $('copyCfg').addEventListener('click', function () {
+      var t = buildConfigText();
+      if (navigator.clipboard) { navigator.clipboard.writeText(t); log('config.h 已复制到剪贴板', 'g'); }
+      else { log('浏览器不支持剪贴板，请手动复制下方文本框', 'w'); }
+    });
+    $('dlScore').addEventListener('click', function () {
+      if (!quant) return;
+      download(cfgBaseFile + '.h', quant.text, 'text/plain');
+      log('已导出乐谱 ' + cfgBaseFile + '.h（' + quant.quantized.length + ' 音符 / ' + (quant.bytes / 1024).toFixed(1) + ' KB）', 'g');
+    });
+    $('dlWav').addEventListener('click', function () {
+      if (!rendered) return;
+      var wav = C.encodeWav(rendered.samples, cfg.sampleRate);
+      download(cfgBaseFile + '_preview.wav', wav, 'audio/wav');
+      log('已导出 WAV（32bit 浮点引擎输出 -> 16bit PCM @ ' + cfg.sampleRate + ' Hz）', 'g');
+    });
+    window.addEventListener('resize', function () { drawWave(); updateEnvelope(); });
+    log('就绪。导入 MIDI 后会自动渲染前 30 秒，改参数会自动重渲染。', 'g');
+  }
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
